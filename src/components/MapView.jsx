@@ -1,11 +1,11 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { MapContainer, TileLayer, Marker, Circle, Popup, useMap, ZoomControl } from 'react-leaflet';
 import L from 'leaflet';
 import {
   MapPin, ShieldCheck, Sparkles, Heart, Briefcase, GraduationCap,
   X, Check, Video, Calendar, Globe, Sliders, Target,
-  Crown, Layers, RefreshCw, MessageCircle, Star,
-  ChevronDown, ChevronUp, Crosshair, Eye, Filter
+  Crown, Layers, RefreshCw, MessageCircle, Star, Search,
+  ChevronDown, ChevronUp, Crosshair, Eye, Filter, Plus, Compass
 } from 'lucide-react';
 import { getMinDistanceToCenters } from '../utils/distance';
 
@@ -55,25 +55,52 @@ function buildPinIcon(color, border, emoji, isSelected, isOnline) {
 }
 
 // Helper: FlyTo on city/profile change
-function MapController({ flyTarget, mapType }) {
+function MapController({ flyTarget }) {
   const map = useMap();
   useEffect(() => {
     if (flyTarget?.lat && flyTarget?.lng) {
-      map.flyTo([flyTarget.lat, flyTarget.lng], flyTarget.zoom || 7, { duration: 1.2, easeLinearity: 0.35 });
+      map.flyTo([flyTarget.lat, flyTarget.lng], flyTarget.zoom || 8, { duration: 1.2, easeLinearity: 0.35 });
     }
   }, [flyTarget]);
   return null;
 }
 
-const CITIES = [
-  { id: 'Bengaluru', label: 'Bengaluru', emoji: '📍', lat: 12.9716, lng: 77.5946 },
-  { id: 'Mumbai',    label: 'Mumbai',    emoji: '📍', lat: 19.0760, lng: 72.8777 },
-  { id: 'Delhi',     label: 'Delhi NCR', emoji: '📍', lat: 28.6139, lng: 77.2090 },
-  { id: 'Hyderabad', label: 'Hyderabad', emoji: '📍', lat: 17.3850, lng: 78.4867 },
-  { id: 'Chennai',   label: 'Chennai',   emoji: '📍', lat: 13.0827, lng: 80.2707 },
-  { id: 'Pune',      label: 'Pune',      emoji: '📍', lat: 18.5204, lng: 73.8567 },
-  { id: 'NRI_USA',   label: 'USA NRI',   emoji: '✈️', lat: 37.3382, lng: -121.8863 },
-  { id: 'All',       label: 'All India', emoji: '🌍', lat: 22.0,    lng: 79.0 },
+// Extensive Indian Cities Database including Haryana, Punjab, UP, Rajasthan, Metros & NRIs
+const CITIES_DATABASE = [
+  // Haryana Cities & Towns
+  { id: 'Sirsa', label: 'Sirsa', state: 'Haryana', emoji: '📍', lat: 29.5320, lng: 75.0318 },
+  { id: 'Hisar', label: 'Hisar', state: 'Haryana', emoji: '📍', lat: 29.1492, lng: 75.7217 },
+  { id: 'Gurugram', label: 'Gurugram', state: 'Haryana', emoji: '📍', lat: 28.4595, lng: 77.0266 },
+  { id: 'Ambala', label: 'Ambala', state: 'Haryana', emoji: '📍', lat: 30.3782, lng: 76.7767 },
+  { id: 'Rohtak', label: 'Rohtak', state: 'Haryana', emoji: '📍', lat: 28.8955, lng: 76.6066 },
+  { id: 'Panipat', label: 'Panipat', state: 'Haryana', emoji: '📍', lat: 29.3909, lng: 76.9635 },
+  { id: 'Karnal', label: 'Karnal', state: 'Haryana', emoji: '📍', lat: 29.6857, lng: 76.9905 },
+  { id: 'Faridabad', label: 'Faridabad', state: 'Haryana', emoji: '📍', lat: 28.4089, lng: 77.3178 },
+  { id: 'Yamunanagar', label: 'Yamunanagar', state: 'Haryana', emoji: '📍', lat: 30.1290, lng: 77.2674 },
+  { id: 'Sonipat', label: 'Sonipat', state: 'Haryana', emoji: '📍', lat: 28.9931, lng: 77.0151 },
+
+  // Punjab & Chandigarh
+  { id: 'Chandigarh', label: 'Chandigarh', state: 'UT', emoji: '📍', lat: 30.7333, lng: 76.7794 },
+  { id: 'Ludhiana', label: 'Ludhiana', state: 'Punjab', emoji: '📍', lat: 30.9010, lng: 75.8573 },
+  { id: 'Amritsar', label: 'Amritsar', state: 'Punjab', emoji: '📍', lat: 31.6340, lng: 74.8723 },
+
+  // Delhi NCR & UP
+  { id: 'Delhi', label: 'Delhi NCR', state: 'Delhi', emoji: '📍', lat: 28.6139, lng: 77.2090 },
+  { id: 'Noida', label: 'Noida', state: 'UP', emoji: '📍', lat: 28.5355, lng: 77.3910 },
+  { id: 'Ghaziabad', label: 'Ghaziabad', state: 'UP', emoji: '📍', lat: 28.6692, lng: 77.4538 },
+  { id: 'Lucknow', label: 'Lucknow', state: 'UP', emoji: '📍', lat: 26.8467, lng: 80.9462 },
+
+  // Rajasthan
+  { id: 'Jaipur', label: 'Jaipur', state: 'Rajasthan', emoji: '📍', lat: 26.9124, lng: 75.7873 },
+
+  // Major Metros & Global
+  { id: 'Bengaluru', label: 'Bengaluru', state: 'Karnataka', emoji: '📍', lat: 12.9716, lng: 77.5946 },
+  { id: 'Mumbai', label: 'Mumbai', state: 'Maharashtra', emoji: '📍', lat: 19.0760, lng: 72.8777 },
+  { id: 'Hyderabad', label: 'Hyderabad', state: 'Telangana', emoji: '📍', lat: 17.3850, lng: 78.4867 },
+  { id: 'Chennai', label: 'Chennai', state: 'Tamil Nadu', emoji: '📍', lat: 13.0827, lng: 80.2707 },
+  { id: 'Pune', label: 'Pune', state: 'Maharashtra', emoji: '📍', lat: 18.5204, lng: 73.8567 },
+  { id: 'NRI_USA', label: 'USA NRI', state: 'USA', emoji: '✈️', lat: 37.3382, lng: -121.8863 },
+  { id: 'All', label: 'All India', state: 'India', emoji: '🌍', lat: 22.0, lng: 79.0 },
 ];
 
 const RADIUS_PRESETS = [
@@ -113,14 +140,24 @@ export default function MapView({
 }) {
   const [myLocation,     setMyLocation]     = useState({ lat: 12.9716, lng: 77.5946, city: 'Bengaluru' });
   const [showUpdateLoc,  setShowUpdateLoc]  = useState(false);
-  const [pendingCity,    setPendingCity]    = useState('Bengaluru');
-  const [selectedCities, setSelectedCities] = useState(['Bengaluru', 'Mumbai']);
+  const [pendingCity,    setPendingCity]    = useState('Sirsa');
+  
+  // Dynamic Selected Cities list (can hold string IDs or city objects)
+  const [selectedCities, setSelectedCities] = useState([
+    CITIES_DATABASE.find(c => c.id === 'Bengaluru'),
+    CITIES_DATABASE.find(c => c.id === 'Delhi')
+  ]);
+
   const [radiusKm,       setRadiusKm]       = useState(250);
   const [showOuter,      setShowOuter]      = useState(true);
   const [selectedProfile,setSelectedProfile] = useState(null);
   const [showFilters,    setShowFilters]    = useState(true);
   const [flyTarget,      setFlyTarget]      = useState(null);
   const [mapType,        setMapType]        = useState('satellite');
+
+  // Search input state for city search
+  const [citySearch,     setCitySearch]     = useState('');
+  const [isSearchOpen,   setIsSearchOpen]   = useState(false);
 
   /* ── Gender tab: show OPPOSITE of current user ── */
   const [genderTab, setGenderTab] = useState(() => {
@@ -131,7 +168,8 @@ export default function MapView({
   /* ── Compute distance + radius for EACH profile ── */
   const profilesWithDist = profiles.map(p => {
     const { minDistance, nearestCenterName } = getMinDistanceToCenters(p.lat, p.lng, selectedCities);
-    const isInRadius = selectedCities.includes('All') || radiusKm >= 3000 || minDistance <= radiusKm;
+    const hasAll = selectedCities.some(c => (typeof c === 'object' ? c.id : c) === 'All');
+    const isInRadius = hasAll || radiusKm >= 3000 || minDistance <= radiusKm;
     return { ...p, minDistance, nearestCenterName, isInRadius };
   });
 
@@ -145,29 +183,52 @@ export default function MapView({
   const inCnt  = displayed.filter(p =>  p.isInRadius).length;
   const outCnt = displayed.filter(p => !p.isInRadius).length;
 
-  /* ── City toggle ── */
-  const toggleCity = (key) => {
-    if (key === 'All') {
-      setSelectedCities(['All']);
-      setFlyTarget({ lat: 22.0, lng: 79.0, zoom: 4 });
-      return;
-    }
-    let upd = selectedCities.filter(k => k !== 'All');
-    if (upd.includes(key)) {
-      if (upd.length > 1) upd = upd.filter(k => k !== key);
-    } else {
-      upd.push(key);
-      const c = CITIES.find(x => x.id === key);
-      if (c) setFlyTarget({ lat: c.lat, lng: c.lng, zoom: 8 });
-    }
-    setSelectedCities(upd);
+  // City Search matching suggestions
+  const suggestions = useMemo(() => {
+    if (!citySearch.trim()) return [];
+    const q = citySearch.toLowerCase();
+    return CITIES_DATABASE.filter(c =>
+      c.label.toLowerCase().includes(q) ||
+      c.state.toLowerCase().includes(q) ||
+      c.id.toLowerCase().includes(q)
+    );
+  }, [citySearch]);
+
+  // Select a city from search
+  const handleSelectCityFromSearch = (cityObj) => {
+    setCitySearch('');
+    setIsSearchOpen(false);
+
+    setSelectedCities(prev => {
+      const filtered = prev.filter(c => (typeof c === 'object' ? c.id : c) !== 'All');
+      const exists = filtered.some(c => (typeof c === 'object' ? c.id : c) === cityObj.id);
+      if (exists) return filtered;
+      return [...filtered, cityObj];
+    });
+
+    setFlyTarget({ lat: cityObj.lat, lng: cityObj.lng, zoom: 10 });
+  };
+
+  // Remove selected city pill
+  const handleRemoveCity = (cityIdToRemove) => {
+    setSelectedCities(prev => {
+      const upd = prev.filter(c => (typeof c === 'object' ? c.id : c) !== cityIdToRemove);
+      if (upd.length === 0) return [CITIES_DATABASE.find(x => x.id === 'All') || 'All'];
+      return upd;
+    });
+  };
+
+  // Quick Preset Add City (e.g. Sirsa, Haryana)
+  const handleQuickAddCity = (cityId) => {
+    const cObj = CITIES_DATABASE.find(x => x.id === cityId);
+    if (cObj) handleSelectCityFromSearch(cObj);
   };
 
   const handleUpdateLoc = () => {
-    const c = CITIES.find(x => x.id === pendingCity);
-    if (c && c.id !== 'All') {
+    const c = CITIES_DATABASE.find(x => x.id === pendingCity);
+    if (c) {
       setMyLocation({ lat: c.lat, lng: c.lng, city: c.label });
-      setFlyTarget({ lat: c.lat, lng: c.lng, zoom: 9 });
+      setFlyTarget({ lat: c.lat, lng: c.lng, zoom: 10 });
     }
     setShowUpdateLoc(false);
   };
@@ -175,7 +236,13 @@ export default function MapView({
   /* ── Shared style tokens ── */
   const PA = { background: 'rgba(212,175,55,0.22)', border: '1.5px solid #D4AF37', color: '#D4AF37' };
   const PI = { background: 'rgba(255,255,255,0.05)', border: '1.5px solid rgba(255,255,255,0.2)', color: 'rgba(255,255,255,0.7)' };
-  const PANEL = { background: 'rgba(8,15,26,0.97)', backdropFilter: 'blur(18px)', border: '1.5px solid rgba(212,175,55,0.5)', borderRadius: '16px', boxShadow: '0 10px 36px rgba(0,0,0,0.6)' };
+  const PANEL = {
+    background: 'linear-gradient(160deg, rgba(8,14,26,0.96) 0%, rgba(15,23,38,0.98) 100%)',
+    backdropFilter: 'blur(20px)',
+    border: '1.5px solid rgba(212,175,55,0.45)',
+    borderRadius: '18px',
+    boxShadow: '0 16px 40px rgba(0,0,0,0.75)'
+  };
   const LBL = { fontSize: '10px', fontWeight: 900, color: '#D4AF37', textTransform: 'uppercase', letterSpacing: '0.8px' };
 
   return (
@@ -206,17 +273,186 @@ export default function MapView({
             <span style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.5)' }}>{displayed.length} Total</span>
           </div>
 
-          {/* ► Filter Panel */}
-          <div style={{ position: 'absolute', top: 14, left: 14, zIndex: 1200, width: 300, ...PANEL, overflow: 'hidden' }}>
-            <div onClick={() => setShowFilters(!showFilters)} style={{ padding: '11px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', borderBottom: showFilters?'1px solid rgba(212,175,55,0.2)':'none' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><Filter size={14} style={{ color: '#D4AF37' }}/><span style={LBL}>Partner Location Filters</span></div>
-              {showFilters ? <ChevronUp size={14} style={{ color: '#D4AF37' }}/> : <ChevronDown size={14} style={{ color: '#D4AF37' }}/>}
+          {/* ► Modern Left Glassmorphic Filter Panel */}
+          <div style={{ position: 'absolute', top: 14, left: 14, zIndex: 1200, width: 320, ...PANEL, overflow: 'visible' }}>
+            <div onClick={() => setShowFilters(!showFilters)} style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', borderBottom: showFilters?'1px solid rgba(212,175,55,0.2)':'none' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+                <Filter size={15} style={{ color: '#D4AF37' }}/>
+                <span style={{ ...LBL, fontSize: 11 }}>Partner Location & Filter Controls</span>
+              </div>
+              {showFilters ? <ChevronUp size={15} style={{ color: '#D4AF37' }}/> : <ChevronDown size={15} style={{ color: '#D4AF37' }}/>}
             </div>
+
             {showFilters && (
-              <div style={{ padding: '13px 14px', display: 'flex', flexDirection: 'column', gap: 12, maxHeight: 'calc(100vh - 160px)', overflowY: 'auto' }}>
+              <div style={{ padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 14, maxHeight: 'calc(100vh - 170px)', overflowY: 'auto' }}>
                 
-                {/* Gender & Map Mode Controls */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingBottom: 10, borderBottom: '1px solid rgba(212,175,55,0.18)' }}>
+                {/* 1. CITY SEARCH INPUT BOX (Search Any City like Sirsa, Haryana) */}
+                <div>
+                  <div style={{ ...LBL, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 5 }}>
+                    <Search size={11} /> Search & Add Any City (e.g. Sirsa, Haryana)
+                  </div>
+                  
+                  <div style={{ position: 'relative' }}>
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      background: 'rgba(255,255,255,0.07)',
+                      border: isSearchOpen ? '1.5px solid #D4AF37' : '1px solid rgba(212,175,55,0.3)',
+                      borderRadius: 12,
+                      padding: '8px 12px',
+                      boxShadow: isSearchOpen ? '0 0 12px rgba(212,175,55,0.3)' : 'none',
+                      transition: 'all 0.2s'
+                    }}>
+                      <Search size={14} style={{ color: '#D4AF37', flexShrink: 0 }} />
+                      <input
+                        type="text"
+                        placeholder="Type city name (e.g. Sirsa, Hisar, Jaipur)..."
+                        value={citySearch}
+                        onChange={e => {
+                          setCitySearch(e.target.value);
+                          setIsSearchOpen(true);
+                        }}
+                        onFocus={() => setIsSearchOpen(true)}
+                        style={{
+                          background: 'transparent',
+                          border: 'none',
+                          outline: 'none',
+                          color: '#FFF',
+                          fontSize: 12,
+                          fontWeight: 700,
+                          width: '100%'
+                        }}
+                      />
+                      {citySearch && (
+                        <X size={14} style={{ cursor: 'pointer', color: 'rgba(255,255,255,0.6)' }} onClick={() => setCitySearch('')} />
+                      )}
+                    </div>
+
+                    {/* Auto-complete Dropdown */}
+                    {isSearchOpen && suggestions.length > 0 && (
+                      <div style={{
+                        position: 'absolute',
+                        top: '108%',
+                        left: 0,
+                        right: 0,
+                        zIndex: 1400,
+                        background: '#0B1322',
+                        border: '1.5px solid #D4AF37',
+                        borderRadius: 12,
+                        maxHeight: 200,
+                        overflowY: 'auto',
+                        boxShadow: '0 14px 36px rgba(0,0,0,0.85)'
+                      }}>
+                        {suggestions.map(c => (
+                          <div
+                            key={c.id}
+                            onClick={() => handleSelectCityFromSearch(c)}
+                            style={{
+                              padding: '9px 13px',
+                              fontSize: 12,
+                              fontWeight: 700,
+                              color: '#FFF',
+                              cursor: 'pointer',
+                              borderBottom: '1px solid rgba(255,255,255,0.06)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justify: 'space-between',
+                              transition: 'all 0.15s'
+                            }}
+                            onMouseEnter={e => e.currentTarget.style.background = 'rgba(212,175,55,0.22)'}
+                            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                          >
+                            <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                              {c.emoji} {c.label}
+                            </span>
+                            <span style={{ fontSize: 9, fontWeight: 900, color: '#D4AF37', background: 'rgba(212,175,55,0.15)', padding: '2px 7px', borderRadius: 50 }}>
+                              {c.state}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* 2. ACTIVE SELECTED CITIES CHIPS */}
+                <div>
+                  <div style={{ ...LBL, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 5 }}>
+                    <MapPin size={11} /> Active Location Centers ({selectedCities.length})
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                    {selectedCities.map(cityItem => {
+                      const cObj = typeof cityItem === 'object'
+                        ? cityItem
+                        : CITIES_DATABASE.find(x => x.id === cityItem) || { id: cityItem, label: cityItem, emoji: '📍' };
+                      
+                      return (
+                        <div
+                          key={cObj.id}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 6,
+                            background: 'linear-gradient(135deg, rgba(212,175,55,0.25) 0%, rgba(122,0,38,0.25) 100%)',
+                            border: '1.5px solid #D4AF37',
+                            color: '#FFF',
+                            padding: '4px 10px',
+                            borderRadius: 50,
+                            fontSize: 11,
+                            fontWeight: 800,
+                            boxShadow: '0 2px 8px rgba(0,0,0,0.4)'
+                          }}
+                        >
+                          <span>{cObj.emoji || '📍'} {cObj.label}</span>
+                          {selectedCities.length > 1 && (
+                            <X
+                              size={12}
+                              onClick={(e) => { e.stopPropagation(); handleRemoveCity(cObj.id); }}
+                              style={{ cursor: 'pointer', color: '#D4AF37', marginLeft: 2 }}
+                            />
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* 3. QUICK REGION PRESETS (Haryana, Punjab, Delhi NCR, etc.) */}
+                <div>
+                  <div style={{ ...LBL, marginBottom: 6 }}>Quick Region Presets</div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+                    {[
+                      { id: 'Sirsa', label: '🌾 Sirsa (Haryana)' },
+                      { id: 'Hisar', label: '🌾 Hisar' },
+                      { id: 'Gurugram', label: '🏢 Gurugram' },
+                      { id: 'Chandigarh', label: '🌳 Chandigarh' },
+                      { id: 'Delhi', label: '🏛️ Delhi NCR' },
+                      { id: 'Jaipur', label: '🕌 Jaipur' },
+                    ].map(preset => (
+                      <button
+                        key={preset.id}
+                        onClick={() => handleQuickAddCity(preset.id)}
+                        style={{
+                          padding: '4px 9px',
+                          borderRadius: 50,
+                          fontSize: 10,
+                          fontWeight: 800,
+                          border: '1px solid rgba(212,175,55,0.3)',
+                          background: 'rgba(255,255,255,0.05)',
+                          color: 'rgba(255,255,255,0.8)',
+                          cursor: 'pointer',
+                          transition: 'all 0.15s'
+                        }}
+                      >
+                        + {preset.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 4. TARGET PROFILES & MAP MODE CONTROLS */}
+                <div style={{ borderTop: '1px solid rgba(212,175,55,0.15)', paddingTop: 10, display: 'flex', flexDirection: 'column', gap: 10 }}>
                   <div>
                     <div style={{ ...LBL, marginBottom: 5 }}>Target Profiles</div>
                     <div style={{ display: 'flex', gap: 4, background: 'rgba(255,255,255,0.06)', padding: 3, borderRadius: 50, border: '1px solid rgba(212,175,55,0.25)' }}>
@@ -227,8 +463,9 @@ export default function MapView({
                       ))}
                     </div>
                   </div>
+
                   <div>
-                    <div style={{ ...LBL, marginBottom: 5 }}>Map Base Style</div>
+                    <div style={{ ...LBL, marginBottom: 5 }}>Map View Style</div>
                     <div style={{ display: 'flex', gap: 4, background: 'rgba(255,255,255,0.06)', padding: 3, borderRadius: 50, border: '1px solid rgba(212,175,55,0.25)' }}>
                       {[{id:'satellite',l:'🛰️ Satellite'},{id:'street',l:'🗺️ Street'}].map(t => (
                         <button key={t.id} onClick={() => setMapType(t.id)} style={{ flex: 1, padding: '5px 0', borderRadius: 50, fontSize: 10, fontWeight: 800, border: 'none', cursor: 'pointer', background: mapType===t.id?'#D4AF37':'transparent', color: mapType===t.id?'#090E1A':'rgba(255,255,255,0.7)', transition: 'all 0.15s' }}>
@@ -238,45 +475,34 @@ export default function MapView({
                     </div>
                   </div>
                 </div>
-                {/* City pills */}
-                <div>
-                  <div style={{ ...LBL, marginBottom: 7, display: 'flex', alignItems: 'center', gap: 4 }}><MapPin size={10}/>Select Cities (multi)</div>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-                    {CITIES.map(c => {
-                      const on = selectedCities.includes(c.id);
-                      return (
-                        <button key={c.id} onClick={() => toggleCity(c.id)} style={{ padding: '4px 9px', borderRadius: '50px', fontSize: '9px', fontWeight: 800, cursor: 'pointer', transition: 'all 0.14s', ...(on?PA:PI) }}>
-                          {on?'✓ ':''}{c.emoji} {c.label}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-                {/* Radius */}
-                <div>
+
+                {/* 5. RADIUS SLIDER */}
+                <div style={{ borderTop: '1px solid rgba(212,175,55,0.15)', paddingTop: 10 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 7 }}>
-                    <span style={{ ...LBL, display: 'flex', alignItems: 'center', gap: 4 }}><Target size={10}/>Search Radius</span>
-                    <span style={{ fontSize: 11, fontWeight: 900, color: '#090E1A', background: '#D4AF37', padding: '2px 10px', borderRadius: '50px' }}>{radiusKm>=3000?'🌍 All India':radiusKm+' km'}</span>
+                    <span style={{ ...LBL, display: 'flex', alignItems: 'center', gap: 4 }}><Target size={11}/>Search Radius</span>
+                    <span style={{ fontSize: 11, fontWeight: 900, color: '#090E1A', background: '#D4AF37', padding: '2px 10px', borderRadius: 50 }}>{radiusKm>=3000?'🌍 All India':radiusKm+' km'}</span>
                   </div>
                   <input type="range" min="10" max="1000" step="10" value={Math.min(radiusKm,1000)} onChange={e=>setRadiusKm(+e.target.value)} style={{ width:'100%', accentColor:'#D4AF37', cursor:'pointer', height: 4 }}/>
                   <div style={{ display:'flex', flexWrap:'wrap', gap:4, marginTop:7 }}>
                     {RADIUS_PRESETS.map(p=>(
-                      <button key={p.val} onClick={()=>setRadiusKm(p.val)} style={{ padding:'3px 8px', borderRadius:'50px', fontSize:'9px', fontWeight:800, cursor:'pointer', ...(radiusKm===p.val?PA:PI) }}>{p.label}</button>
+                      <button key={p.val} onClick={()=>setRadiusKm(p.val)} style={{ padding:'3px 8px', borderRadius:50, fontSize:9, fontWeight:800, cursor:'pointer', ...(radiusKm===p.val?PA:PI) }}>{p.label}</button>
                     ))}
                   </div>
                 </div>
-                {/* Show outer toggle */}
-                <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
-                  <span style={{ fontSize:10, fontWeight:700, color:'rgba(255,255,255,0.68)' }}>Show out-of-radius</span>
-                  <button onClick={()=>setShowOuter(!showOuter)} style={{ background:showOuter?'#D4AF37':'rgba(255,255,255,0.1)', color:showOuter?'#090E1A':'#FFF', border:'none', borderRadius:'50px', padding:'4px 12px', fontSize:10, fontWeight:900, cursor:'pointer' }}>{showOuter?'👁️ ON':'🚫 OFF'}</button>
+
+                {/* 6. SHOW OUTER TOGGLE */}
+                <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', borderTop: '1px solid rgba(212,175,55,0.15)', paddingTop: 10 }}>
+                  <span style={{ fontSize:10, fontWeight:700, color:'rgba(255,255,255,0.7)' }}>Show Out-of-Radius Profiles</span>
+                  <button onClick={()=>setShowOuter(!showOuter)} style={{ background:showOuter?'#D4AF37':'rgba(255,255,255,0.1)', color:showOuter?'#090E1A':'#FFF', border:'none', borderRadius:50, padding:'4px 12px', fontSize:10, fontWeight:900, cursor:'pointer' }}>{showOuter?'👁️ ON':'🚫 OFF'}</button>
                 </div>
-                {/* My Location */}
-                <div style={{ borderTop:'1px solid rgba(212,175,55,0.18)', paddingTop:11 }}>
-                  <div style={{ ...LBL, marginBottom:5, display:'flex', alignItems:'center', gap:4 }}><Crosshair size={10}/>My Profile Location</div>
+
+                {/* 7. MY PROFILE LOCATION */}
+                <div style={{ borderTop:'1px solid rgba(212,175,55,0.18)', paddingTop:10 }}>
+                  <div style={{ ...LBL, marginBottom:5, display:'flex', alignItems:'center', gap:4 }}><Crosshair size={11}/>My Profile Location</div>
                   {showUpdateLoc ? (
                     <div style={{ display:'flex', flexDirection:'column', gap:7 }}>
                       <select value={pendingCity} onChange={e=>setPendingCity(e.target.value)} style={{ width:'100%', padding:'6px 9px', borderRadius:9, fontSize:11, border:'1px solid rgba(212,175,55,0.5)', background:'rgba(255,255,255,0.07)', color:'#FFF', cursor:'pointer' }}>
-                        {CITIES.filter(c=>c.id!=='All').map(c=><option key={c.id} value={c.id} style={{ background:'#090E1A' }}>{c.emoji} {c.label}</option>)}
+                        {CITIES_DATABASE.filter(c=>c.id!=='All').map(c=><option key={c.id} value={c.id} style={{ background:'#090E1A' }}>{c.emoji} {c.label} ({c.state})</option>)}
                       </select>
                       <div style={{ display:'flex', gap:5 }}>
                         <button onClick={handleUpdateLoc} style={{ flex:1, padding:6, borderRadius:8, fontSize:10, fontWeight:900, background:'#D4AF37', color:'#090E1A', border:'none', cursor:'pointer' }}>✓ Save</button>
@@ -285,13 +511,14 @@ export default function MapView({
                     </div>
                   ) : (
                     <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
-                      <span style={{ fontSize:11, color:'rgba(255,255,255,0.8)', fontWeight:700 }}>📍 {myLocation.city}</span>
-                      <button onClick={()=>setShowUpdateLoc(true)} style={{ padding:'4px 11px', borderRadius:'50px', fontSize:10, fontWeight:800, background:'rgba(212,175,55,0.16)', color:'#D4AF37', border:'1px solid rgba(212,175,55,0.45)', cursor:'pointer', display:'flex', alignItems:'center', gap:3 }}>
+                      <span style={{ fontSize:11, color:'rgba(255,255,255,0.85)', fontWeight:700 }}>📍 {myLocation.city}</span>
+                      <button onClick={()=>setShowUpdateLoc(true)} style={{ padding:'4px 11px', borderRadius:50, fontSize:10, fontWeight:800, background:'rgba(212,175,55,0.16)', color:'#D4AF37', border:'1px solid rgba(212,175,55,0.45)', cursor:'pointer', display:'flex', alignItems:'center', gap:3 }}>
                         <RefreshCw size={9}/>Update
                       </button>
                     </div>
                   )}
                 </div>
+
               </div>
             )}
           </div>

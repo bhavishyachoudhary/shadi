@@ -15,6 +15,19 @@ export function calculateDistanceKm(lat1, lon1, lat2, lon2) {
 
 export const CITY_CENTERS = {
   All: { id: 'All', name: '🌍 All Locations', lat: 20.5937, lng: 78.9629, isAll: true },
+  Sirsa: { id: 'Sirsa', name: '📍 Sirsa, Haryana', lat: 29.5320, lng: 75.0318 },
+  Hisar: { id: 'Hisar', name: '📍 Hisar, Haryana', lat: 29.1492, lng: 75.7217 },
+  Gurugram: { id: 'Gurugram', name: '📍 Gurugram', lat: 28.4595, lng: 77.0266 },
+  Ambala: { id: 'Ambala', name: '📍 Ambala', lat: 30.3782, lng: 76.7767 },
+  Rohtak: { id: 'Rohtak', name: '📍 Rohtak', lat: 28.8955, lng: 76.6066 },
+  Panipat: { id: 'Panipat', name: '📍 Panipat', lat: 29.3909, lng: 76.9635 },
+  Karnal: { id: 'Karnal', name: '📍 Karnal', lat: 29.6857, lng: 76.9905 },
+  Faridabad: { id: 'Faridabad', name: '📍 Faridabad', lat: 28.4089, lng: 77.3178 },
+  Chandigarh: { id: 'Chandigarh', name: '📍 Chandigarh', lat: 30.7333, lng: 76.7794 },
+  Ludhiana: { id: 'Ludhiana', name: '📍 Ludhiana', lat: 30.9010, lng: 75.8573 },
+  Amritsar: { id: 'Amritsar', name: '📍 Amritsar', lat: 31.6340, lng: 74.8723 },
+  Jaipur: { id: 'Jaipur', name: '📍 Jaipur', lat: 26.9124, lng: 75.7873 },
+  Lucknow: { id: 'Lucknow', name: '📍 Lucknow', lat: 26.8467, lng: 80.9462 },
   Bengaluru: { id: 'Bengaluru', name: '📍 Bengaluru Center', lat: 12.9716, lng: 77.5946 },
   Mumbai: { id: 'Mumbai', name: '📍 Mumbai Center', lat: 19.0760, lng: 72.8777 },
   Delhi: { id: 'Delhi', name: '📍 Delhi NCR Center', lat: 28.6139, lng: 77.2090 },
@@ -37,13 +50,27 @@ export function getMinDistanceToCenters(profileLat, profileLng, selectedCityKeys
   let minDistance = Infinity;
   let nearestCenterName = '';
 
-  selectedCityKeys.forEach(cityKey => {
-    const center = CITY_CENTERS[cityKey];
-    if (center && !center.isAll) {
-      const d = calculateDistanceKm(center.lat, center.lng, profileLat, profileLng);
+  selectedCityKeys.forEach(cityItem => {
+    let lat, lng, name;
+    if (typeof cityItem === 'object' && cityItem !== null) {
+      lat = cityItem.lat;
+      lng = cityItem.lng;
+      name = cityItem.label || cityItem.name;
+    } else {
+      const center = CITY_CENTERS[cityItem];
+      if (center) {
+        if (center.isAll) return;
+        lat = center.lat;
+        lng = center.lng;
+        name = center.name;
+      }
+    }
+
+    if (lat && lng) {
+      const d = calculateDistanceKm(lat, lng, profileLat, profileLng);
       if (d < minDistance) {
         minDistance = d;
-        nearestCenterName = center.name.replace('📍 ', '').replace('✈️ ', '');
+        nearestCenterName = (name || '').replace('📍 ', '').replace('✈️ ', '');
       }
     }
   });
