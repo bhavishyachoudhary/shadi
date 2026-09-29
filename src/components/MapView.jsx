@@ -587,11 +587,14 @@ export default function MapView({
             </Marker>
 
             {/* Radius Circles — one per selected city */}
-            {!selectedCities.includes('All') && radiusKm < 3000 && CITIES
-              .filter(c => selectedCities.includes(c.id) && c.id !== 'All')
-              .map(c => (
+            {radiusKm < 3000 && selectedCities.map((cityItem, idx) => {
+              const c = typeof cityItem === 'object'
+                ? cityItem
+                : CITIES_DATABASE.find(x => x.id === cityItem);
+              if (!c || c.id === 'All' || !c.lat || !c.lng) return null;
+              return (
                 <Circle
-                  key={'rc-' + c.id}
+                  key={'rc-' + (c.id || idx)}
                   center={[c.lat, c.lng]}
                   radius={radiusKm * 1000}
                   pathOptions={{
@@ -603,8 +606,8 @@ export default function MapView({
                     opacity: 0.8
                   }}
                 />
-              ))
-            }
+              );
+            })}
 
             {/* Profile Pins */}
             {displayed.map(p => {
