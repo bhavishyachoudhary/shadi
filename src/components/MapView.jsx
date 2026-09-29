@@ -159,11 +159,11 @@ export default function MapView({
   const [citySearch,     setCitySearch]     = useState('');
   const [isSearchOpen,   setIsSearchOpen]   = useState(false);
 
-  /* ── Gender tab: show OPPOSITE of current user ── */
-  const [genderTab, setGenderTab] = useState(() => {
+  /* ── Gender: Automatically show OPPOSITE of current user (Groom -> Bride, Bride -> Groom) ── */
+  const genderTab = useMemo(() => {
     const g = currentUser?.gender || 'Groom';
     return g === 'Groom' ? 'Bride' : 'Groom';
-  });
+  }, [currentUser]);
 
   /* ── Compute distance + radius for EACH profile ── */
   const profilesWithDist = profiles.map(p => {
@@ -451,23 +451,12 @@ export default function MapView({
                   </div>
                 </div>
 
-                {/* 4. TARGET PROFILES & MAP MODE CONTROLS */}
+                {/* 4. MAP MODE CONTROLS */}
                 <div style={{ borderTop: '1px solid rgba(212,175,55,0.15)', paddingTop: 10, display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  <div>
-                    <div style={{ ...LBL, marginBottom: 5 }}>Target Profiles</div>
-                    <div style={{ display: 'flex', gap: 4, background: 'rgba(255,255,255,0.06)', padding: 3, borderRadius: 50, border: '1px solid rgba(212,175,55,0.25)' }}>
-                      {['Bride','Groom','All'].map(g => (
-                        <button key={g} onClick={() => setGenderTab(g)} style={{ flex: 1, padding: '5px 0', borderRadius: 50, fontSize: 10, fontWeight: 800, border: 'none', cursor: 'pointer', background: genderTab===g?'#D4AF37':'transparent', color: genderTab===g?'#090E1A':'rgba(255,255,255,0.7)', transition: 'all 0.15s' }}>
-                          {g==='Bride'?'👰 Brides':g==='Groom'?'🤵 Grooms':'🌐 All'}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
                   <div>
                     <div style={{ ...LBL, marginBottom: 5 }}>Map View Style</div>
                     <div style={{ display: 'flex', gap: 4, background: 'rgba(255,255,255,0.06)', padding: 3, borderRadius: 50, border: '1px solid rgba(212,175,55,0.25)' }}>
-                      {[{id:'satellite',l:'🛰️ Satellite'},{id:'street',l:'🗺️ Street'}].map(t => (
+                      {[{id:'satellite',l:'🛰️ Satellite View'},{id:'street',l:'🗺️ Street Map'}].map(t => (
                         <button key={t.id} onClick={() => setMapType(t.id)} style={{ flex: 1, padding: '5px 0', borderRadius: 50, fontSize: 10, fontWeight: 800, border: 'none', cursor: 'pointer', background: mapType===t.id?'#D4AF37':'transparent', color: mapType===t.id?'#090E1A':'rgba(255,255,255,0.7)', transition: 'all 0.15s' }}>
                           {t.l}
                         </button>
