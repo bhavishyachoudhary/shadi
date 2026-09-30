@@ -1,70 +1,63 @@
-/**
- * Bandhan Matrimony — JWT Auth Middleware
- * Verifies Bearer token on protected routes
- */
+/** Bandhan Matrimony — Bearer JWT authentication middleware. */
 
 const jwt = require('jsonwebtoken');
+const { sendError } = require('../utils/apiResponse');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'bandhan_default_secret';
+const isProduction = process.env.NODE_ENV === 'production';
+const JWT_SECRET = process.env.JWT_SECRET || (isProduction ? null : 'bandhan-development-jwt-secret-change-me');
 
-/**
- * Middleware: Require valid JWT token
- * Attaches decoded user to req.user
- */
+if (!JWT_SECRET) {
+  throw new Error('JWT_SECRET is required in production.');
+}
+
+const extractBearerToken = req => {
+  const authorization = req.headers.authorization;
+  if (!authorization?.startsWith('Bearer ')) return null;
+  return authorization.slice('Bearer '.length).trim() || null;
+};
+
 const requireAuth = (req, res, next) => {
-  const authHeader = req.headers['authorization'];
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ error: 'No token provided. Please login.' });
+  const token = extractBearerToken(req);
+  if (!token) {
+    return sendError(res, 401, 'AUTH_REQUIRED', 'Please sign in to continue.');
   }
-
-  const token = authHeader.split(' ')[1];
 
   try {
-    const decoded = jwt.verify(token, JWT_SECRET);
-    req.user = decoded;
-    next();
-  } catch (err) {
-    if (err.name === 'TokenExpiredError') {
-      return res.status(401).json({ error: 'Session expired. Please login again.' });
+    req.user = jwt.verify(token, JWT_SECRET);
+    return next();
+  } catch (error) {
+    if (error.name === 'TokenExpiredError') {
+      return sendError(res, 401, 'SESSION_EXPIRED', 'Your session has expired. Please sign in again.');
     }
-    return res.status(401).json({ error: 'Invalid token. Please login.' });
+    return sendError(res, 401, 'INVALID_TOKEN', 'Your session token is invalid. Please sign in again.');
   }
 };
 
-/**
- * Middleware: Optional auth — attaches user if token exists, doesn't block if missing
- */
-const optionalAuth = (req, res, next) => {
-  const authHeader = req.headers['authorization'];
-  if (authHeader && authHeader.startsWith('Bearer ')) {
-    const token = authHeader.split(' ')[1];
-    try {
-      req.user = jwt.verify(token, JWT_SECRET);
-    } catch (e) {
-      req.user = null;
-    }
+const optionalAuth = (req, _res, next) => {
+  const token = extractBearerToken(req);
+  if (!token) return next();
+
+  try {
+    req.user = jwt.verify(token, JWT_SECRET);
+  } catch {
+    req.user = null;
   }
-  next();
+  return next();
 };
 
-/**
- * Helper: Generate JWT token for user
- */
-const generateToken = (user) => {
-  return jwt.sign(
-    {
-      userId: user.id,
-      email: user.email,
-      mobile: user.mobile,
-      gender: user.gender,
-      isEmailVerified: user.isEmailVerified,
-      isMobileVerified: user.isMobileVerified,
-      isApproved: user.isApproved,
-      profileComplete: user.profileComplete,
-    },
-    JWT_SECRET,
-    { expiresIn: process.env.JWT_EXPIRES_IN || '24h' }
-  );
-};
+const generateToken = user => jwt.sign(
+  {
+    userId: String(user.id),
+    email: user.email,
+    mobile: user.mobile,
+    gender: user.gender,
+    isEmailVerified: Boolean(user.isEmailVerified),
+    isMobileVerified: Boolean(user.isMobileVerified),
+    isApproved: Boolean(user.isApproved),
+    profileComplete: Boolean(user.profileComplete),
+  },
+  JWT_SECRET,
+  { expiresIn: process.env.JWT_EXPIRES_IN || '24h' },
+);
 
 module.exports = { requireAuth, optionalAuth, generateToken };

@@ -12,7 +12,7 @@ passport.use(new GoogleStrategy(
   {
     clientID: process.env.GOOGLE_CLIENT_ID || 'your_google_client_id',
     clientSecret: process.env.GOOGLE_CLIENT_SECRET || 'your_google_client_secret',
-    callbackURL: process.env.GOOGLE_CALLBACK_URL || 'http://localhost:3001/api/auth/google/callback',
+    callbackURL: process.env.GOOGLE_CALLBACK_URL || 'http://localhost:3001/api/v1/auth/google/callback',
     passReqToCallback: true,
   },
   async (req, accessToken, refreshToken, googleProfile, done) => {
@@ -22,8 +22,9 @@ passport.use(new GoogleStrategy(
       const displayName = googleProfile.displayName;
       const photo = googleProfile.photos?.[0]?.value;
 
-      // The gender is passed via state param in the OAuth request
-      const gender = req.query?.state || 'Bride';
+      // Gender intent is stored server-side; the OAuth state parameter is reserved for CSRF protection.
+      const gender = req.session?.pendingGender || 'Bride';
+      if (req.session) delete req.session.pendingGender;
 
       // Check if user already exists
       let user = await User.findOne({

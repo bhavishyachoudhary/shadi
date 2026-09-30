@@ -1,48 +1,16 @@
 import React, { useState } from 'react';
-import { MessageCircle, Heart, Check, X, Send, User, ShieldCheck, PhoneCall, Calendar, Globe, RotateCcw, ArrowRight, Sparkles, Lock } from 'lucide-react';
+import { MessageCircle, Heart, Check, X, Send, Calendar, RotateCcw, ArrowRight, Sparkles, Lock } from 'lucide-react';
 
-export default function DashboardInbox({ receivedInterests = [], sentInterests = [], interestMap = {}, profiles = [], onAcceptInterest, onDeclineInterest, onExpressInterest, onOpenParivarMeet, onSelectProfile, onOpenLiveChat }) {
+const idsEqual = (left, right) => String(left) === String(right);
+
+export default function DashboardInbox({ receivedInterests = [], interestMap = {}, profiles = [], onAcceptInterest, onDeclineInterest, onExpressInterest, onOpenParivarMeet, onSelectProfile, onOpenLiveChat }) {
   const [activeTab, setActiveTab] = useState('accepted');
-  const [activeChatProfile, setActiveChatProfile] = useState(profiles[0]); // Default Ananya Sharma
-  const [chatMessages, setChatMessages] = useState([
-    { id: 1, sender: 'them', text: 'Namaste! I went through your profile and family background on Bandhan Matrimony.', time: '10:15 AM' },
-    { id: 2, sender: 'me', text: 'Hello! Thank you. I read your profile as well. Very impressive career.', time: '10:18 AM' },
-    { id: 3, sender: 'them', text: 'Would it be okay to involve our parents for an introductory phone conversation?', time: '10:22 AM' }
-  ]);
-  const [inputMessage, setInputMessage] = useState('');
 
-  // Derived arrays based on interestMap state
-  const acceptedProfileIds = Object.keys(interestMap).filter(id => interestMap[id] === 'accepted').map(Number);
-  const declinedProfileIds = Object.keys(interestMap).filter(id => interestMap[id] === 'declined').map(Number);
-  const sentProfileIds = Object.keys(interestMap).filter(id => interestMap[id] === 'sent').map(Number);
-
-  const handleSendMessage = (e) => {
-    e.preventDefault();
-    if (!inputMessage.trim()) return;
-
-    const newMessage = {
-      id: Date.now(),
-      sender: 'me',
-      text: inputMessage,
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    };
-
-    setChatMessages(prev => [...prev, newMessage]);
-    setInputMessage('');
-
-    // Simulated reply
-    setTimeout(() => {
-      setChatMessages(prev => [
-        ...prev,
-        {
-          id: Date.now() + 1,
-          sender: 'them',
-          text: 'Sure! I will share my father’s contact number with you right away.',
-          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        }
-      ]);
-    }, 1200);
-  };
+  // Object keys are strings by definition. Keep IDs as strings so real UUIDs remain valid.
+  const acceptedProfileIds = Object.keys(interestMap).filter(id => interestMap[id] === 'accepted');
+  const declinedProfileIds = Object.keys(interestMap).filter(id => interestMap[id] === 'declined');
+  const sentProfileIds = Object.keys(interestMap).filter(id => interestMap[id] === 'sent');
+  const getProfile = (profileId) => profiles.find(profile => idsEqual(profile.id, profileId));
 
   return (
     <div style={{ backgroundColor: '#FFFFFF', borderRadius: '24px', border: '2px solid #EAE3D9', boxShadow: '0 12px 35px rgba(0,0,0,0.06)', overflow: 'hidden', minHeight: '620px', display: 'flex', flexDirection: 'row', flexWrap: 'wrap' }}>
@@ -195,7 +163,7 @@ export default function DashboardInbox({ receivedInterests = [], sentInterests =
         </div>
 
         <div style={{ backgroundColor: '#FEF3C7', padding: '12px', borderRadius: '14px', border: '1px solid #FDE68A', fontSize: '11px', color: '#92400E', marginTop: '20px', lineHeight: '1.4' }}>
-          <Lock className="w-3.5 h-3.5 inline mr-1 text-[#D97706]" /> <strong>Verified Privacy:</strong> Direct contact details are unlocked only for mutually accepted requests.
+          <Lock className="w-3.5 h-3.5 inline mr-1 text-[#D97706]" /> <strong>Private by default:</strong> Direct contact details are available only after both members accept the connection.
         </div>
       </div>
 
@@ -216,7 +184,7 @@ export default function DashboardInbox({ receivedInterests = [], sentInterests =
               </div>
 
               <span style={{ backgroundColor: '#D1FAE5', color: '#065F46', fontSize: '11px', fontWeight: 900, padding: '4px 12px', borderRadius: '50px', border: '1px solid #A7F3D0' }}>
-                ✅ Verified Connections
+                ✅ Accepted Connections
               </span>
             </div>
 
@@ -228,7 +196,7 @@ export default function DashboardInbox({ receivedInterests = [], sentInterests =
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 {acceptedProfileIds.map((id) => {
-                  const profile = profiles.find(p => p.id === id);
+                  const profile = getProfile(id);
                   if (!profile) return null;
 
                   return (
@@ -282,12 +250,8 @@ export default function DashboardInbox({ receivedInterests = [], sentInterests =
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                         <button
                           onClick={() => {
-                            if (onOpenLiveChat) {
-                              onOpenLiveChat(profile);
-                            } else {
-                              setActiveTab('chat');
-                              setActiveChatProfile(profile);
-                            }
+                            if (onOpenLiveChat) onOpenLiveChat(profile);
+                            else setActiveTab('chat');
                           }}
                           className="btn-ruby"
                           style={{ fontSize: '11px', padding: '8px 16px', background: '#059669', borderColor: '#10B981' }}
@@ -346,7 +310,7 @@ export default function DashboardInbox({ receivedInterests = [], sentInterests =
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 {declinedProfileIds.map((id) => {
-                  const profile = profiles.find(p => p.id === id);
+                  const profile = getProfile(id);
                   if (!profile) return null;
 
                   return (
@@ -417,7 +381,7 @@ export default function DashboardInbox({ receivedInterests = [], sentInterests =
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 {receivedInterests.map((interest) => {
-                  const senderProfile = profiles.find(p => p.id === interest.senderId);
+                  const senderProfile = getProfile(interest.senderId);
                   if (!senderProfile) return null;
 
                   return (
@@ -463,12 +427,7 @@ export default function DashboardInbox({ receivedInterests = [], sentInterests =
                         </button>
 
                         <button
-                          onClick={() => {
-                            onAcceptInterest(interest.id);
-                            onExpressInterest(senderProfile.id, 'accepted');
-                            setActiveTab('chat');
-                            setActiveChatProfile(senderProfile);
-                          }}
+                          onClick={() => onAcceptInterest(interest.id)}
                           className="btn-ruby"
                           style={{ fontSize: '11px', padding: '8px 16px' }}
                         >
@@ -502,7 +461,7 @@ export default function DashboardInbox({ receivedInterests = [], sentInterests =
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 {sentProfileIds.map((interestId) => {
-                  const targetProfile = profiles.find(p => p.id === interestId);
+                  const targetProfile = getProfile(interestId);
                   if (!targetProfile) return null;
 
                   return (
@@ -550,77 +509,46 @@ export default function DashboardInbox({ receivedInterests = [], sentInterests =
           </div>
         )}
 
-        {/* LIVE CHAT TAB */}
-        {activeTab === 'chat' && activeChatProfile && (
-          <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-            
-            {/* Chat Header */}
-            <div style={{ backgroundColor: '#FAF7F2', padding: '14px 20px', borderBottom: '1.5px solid #EAE3D9', borderRadius: '16px 16px 0 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <img
-                  src={activeChatProfile.photo}
-                  alt={activeChatProfile.name}
-                  style={{ width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover', border: '2px solid #D4AF37' }}
-                />
-                <div>
-                  <h5 style={{ fontFamily: 'Cinzel', fontSize: '15px', fontWeight: 800, color: '#7A0026', margin: 0 }}>{activeChatProfile.name}</h5>
-                  <p style={{ fontSize: '10px', color: '#059669', fontWeight: 800, margin: 0 }}>● Online now</p>
-                </div>
+        {/* ACCEPTED-ONLY CHAT DIRECTORY */}
+        {activeTab === 'chat' && (
+          <div>
+            <div style={{ paddingBottom: 16, marginBottom: 20, borderBottom: '1.5px solid #EAE3D9' }}>
+              <h4 style={{ fontFamily: 'Cinzel', fontSize: 20, fontWeight: 800, color: '#7A0026', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <MessageCircle className="w-5 h-5" /> Accepted Conversations
+              </h4>
+              <p style={{ fontSize: 12, color: '#665D65', margin: '4px 0 0' }}>
+                A conversation is available only after an interest request has been accepted.
+              </p>
+            </div>
+
+            {acceptedProfileIds.length === 0 ? (
+              <div style={{ backgroundColor: '#FAF7F2', borderRadius: 16, padding: '40px 20px', textAlign: 'center', border: '1.5px solid #EAE3D9' }}>
+                <Lock className="w-8 h-8 text-[#D4AF37] mx-auto mb-2" />
+                <p style={{ fontSize: 13, color: '#665D65', margin: 0 }}>No accepted connections yet. Chat remains locked until a request is accepted.</p>
               </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {acceptedProfileIds.map(profileId => {
+                  const profile = getProfile(profileId);
+                  if (!profile) return null;
 
-              <button style={{ backgroundColor: '#FFF0F3', color: '#7A0026', border: '1px solid #FFCCD5', borderRadius: '50px', padding: '6px 14px', fontSize: '11px', fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <PhoneCall className="w-3.5 h-3.5 text-[#7A0026]" /> Call Family
-              </button>
-            </div>
-
-            {/* Chat Body Messages */}
-            <div style={{ flex: 1, padding: '20px', backgroundColor: '#FAF7F2', display: 'flex', flexDirection: 'column', gap: '12px', overflowY: 'auto' }}>
-              {chatMessages.map((msg) => (
-                <div
-                  key={msg.id}
-                  style={{
-                    maxWidth: '380px',
-                    alignSelf: msg.sender === 'me' ? 'flex-end' : 'flex-start',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: msg.sender === 'me' ? 'flex-end' : 'flex-start'
-                  }}
-                >
-                  <div
-                    style={{
-                      padding: '12px 16px',
-                      borderRadius: '16px',
-                      fontSize: '12px',
-                      fontWeight: 600,
-                      backgroundColor: msg.sender === 'me' ? '#7A0026' : '#FFFFFF',
-                      color: msg.sender === 'me' ? '#FFFFFF' : '#1F191D',
-                      border: msg.sender === 'me' ? 'none' : '1px solid #EAE3D9',
-                      boxShadow: '0 2px 8px rgba(0,0,0,0.04)'
-                    }}
-                  >
-                    {msg.text}
-                  </div>
-                  <span style={{ fontSize: '10px', color: '#9CA3AF', marginTop: '2px', padding: '0 4px' }}>
-                    {msg.time}
-                  </span>
-                </div>
-              ))}
-            </div>
-
-            {/* Chat Input Bar */}
-            <form onSubmit={handleSendMessage} style={{ padding: '14px 20px', backgroundColor: '#FFFFFF', borderTop: '1.5px solid #EAE3D9', display: 'flex', gap: '8px' }}>
-              <input
-                type="text"
-                placeholder="Type a polite message..."
-                value={inputMessage}
-                onChange={(e) => setInputMessage(e.target.value)}
-                style={{ flex: 1, backgroundColor: '#FAF7F2', border: '1px solid #EAE3D9', borderRadius: '12px', padding: '10px 16px', fontSize: '12px', fontWeight: 600, outline: 'none' }}
-              />
-              <button type="submit" className="btn-ruby" style={{ fontSize: '11px', padding: '10px 20px' }}>
-                <Send className="w-4 h-4" /> Send
-              </button>
-            </form>
-
+                  return (
+                    <div key={profileId} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, padding: 16, borderRadius: 16, border: '1.5px solid #A7F3D0', background: '#F0FDF4', flexWrap: 'wrap' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <img src={profile.photo} alt={profile.name} style={{ width: 52, height: 52, borderRadius: '50%', objectFit: 'cover', border: '2px solid #059669' }} />
+                        <div>
+                          <div style={{ fontSize: 14, fontWeight: 800, color: '#065F46' }}>{profile.name}</div>
+                          <div style={{ fontSize: 11, fontWeight: 700, color: '#047857' }}>Accepted connection</div>
+                        </div>
+                      </div>
+                      <button type="button" onClick={() => onOpenLiveChat?.(profile)} className="btn-ruby" style={{ fontSize: 11, padding: '8px 16px', background: '#059669', borderColor: '#10B981' }}>
+                        <MessageCircle className="w-4 h-4" /> Open Conversation
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
 

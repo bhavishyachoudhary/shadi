@@ -1,78 +1,31 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { X, Heart, ShieldCheck, MapPin, Briefcase, GraduationCap, Sparkles, Check, PhoneCall, Lock, Video, Calendar, Globe, Award } from 'lucide-react';
+import React, { useCallback, useState } from 'react';
+import { X, Heart, ShieldCheck, Briefcase, GraduationCap, Sparkles, Check, Lock, Video, Calendar, Globe } from 'lucide-react';
+import { apiRequest } from '../api/client';
 
-export default function ProfileDetailModal({ profile, onClose, onExpressInterest, isInterested, interestStatus, onOpenLifestyleReels, onOpenParivarMeet }) {
+export default function ProfileDetailModal({ profile, onClose, onExpressInterest, interestStatus, onOpenLifestyleReels, onOpenParivarMeet }) {
   const [activeTab, setActiveTab] = useState('about');
-  const [showContactUnlocked, setShowContactUnlocked] = useState(false);
 
-  // ── Gemini AI Verdict State ──
+  // Gemini verdicts are displayed only when returned by the authenticated API.
   const [aiData, setAiData] = useState(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiFetched, setAiFetched] = useState(false);
+  const [aiError, setAiError] = useState('');
 
-  // Mock 15-dimension AI data for demo (used when backend is unavailable)
-  const generateMockAiData = useCallback((prof) => {
-    const base = prof?.matchScore || 82;
-    const dims = {
-      kundali_match:              Math.min(10, Math.round(base * 0.095)),
-      diet_compatibility:         Math.min(10, Math.round(base * 0.10)),
-      lifestyle_match:            Math.min(10, Math.round(base * 0.088)),
-      career_alignment:           Math.min(10, Math.round(base * 0.092)),
-      income_compatibility:       Math.min(10, Math.round(base * 0.10)),
-      education_compatibility:    Math.min(10, Math.round(base * 0.095)),
-      location_match:             Math.min(10, Math.round(base * 0.085)),
-      nri_relocation_willingness: Math.min(10, Math.round(base * 0.078)),
-      family_values_match:        Math.min(10, Math.round(base * 0.098)),
-      religion_caste_compatibility: Math.min(10, Math.round(base * 0.10)),
-      language_match:             Math.min(10, Math.round(base * 0.10)),
-      values_about_alignment:     Math.min(10, Math.round(base * 0.093)),
-      age_gap_suitability:        Math.min(10, Math.round(base * 0.095)),
-      height_preference:          Math.min(10, Math.round(base * 0.090)),
-      manglik_compatibility:      Math.min(10, Math.round(base * 0.10)),
-    };
-    const totalScore = Math.round(Object.values(dims).reduce((a, b) => a + b, 0) / 1.5);
-    return {
-      score: totalScore,
-      dimensions: dims,
-      verdict: `${prof?.name} shows ${totalScore >= 80 ? 'excellent' : totalScore >= 65 ? 'good' : 'moderate'} compatibility across ${Object.keys(dims).length} dimensions evaluated by Gemini AI. ${totalScore >= 80 ? 'Strong alignment in values, education, and family background suggests a highly promising match.' : 'There is a solid foundation with some areas for discussion before proceeding.'}`
-    };
-  }, []);
-
-  // Fetch AI verdict from backend (or generate mock for demo)
   const fetchAiVerdict = useCallback(async () => {
     if (aiFetched || !profile) return;
     setAiLoading(true);
     setAiFetched(true);
+    setAiError('');
 
     try {
-      const token = localStorage.getItem('bandhan_auth')
-        ? JSON.parse(localStorage.getItem('bandhan_auth'))?.token
-        : null;
-
-      if (token) {
-        const resp = await fetch(`/api/ai/match/${profile.id}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        if (resp.ok) {
-          const data = await resp.json();
-          setAiData(data);
-          setAiLoading(false);
-          return;
-        }
-      }
-    } catch (_) { /* Backend not available — use demo mock */ }
-
-    // Simulate AI thinking delay for demo
-    setTimeout(() => {
-      setAiData(generateMockAiData(profile));
+      const data = await apiRequest(`/ai/match/${profile.id}`);
+      setAiData(data);
+    } catch (requestError) {
+      setAiError(requestError.message || 'AI compatibility analysis is temporarily unavailable.');
+    } finally {
       setAiLoading(false);
-    }, 1800);
-  }, [aiFetched, profile, generateMockAiData]);
-
-  // Auto-fetch when AI tab is opened
-  useEffect(() => {
-    if (activeTab === 'ai-verdict') fetchAiVerdict();
-  }, [activeTab, fetchAiVerdict]);
+    }
+  }, [aiFetched, profile]);
 
   // Auto-calculated 36 Gunas Score
   const gunaScore = (() => {
@@ -121,7 +74,7 @@ export default function ProfileDetailModal({ profile, onClose, onExpressInterest
                 </span>
                 {profile.isVerified && (
                   <span style={{ backgroundColor: '#2563EB', color: '#FFFFFF', padding: '3px 12px', borderRadius: '50px', fontSize: '11px', fontWeight: 800, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                    <ShieldCheck className="w-3.5 h-3.5" /> Govt ID Verified
+                    <ShieldCheck className="w-3.5 h-3.5" /> Contact Verified
                   </span>
                 )}
                 {/* 36 Gunas Milan Badge */}
@@ -164,7 +117,10 @@ export default function ProfileDetailModal({ profile, onClose, onExpressInterest
           ].map((tab) => (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => {
+                setActiveTab(tab.id);
+                if (tab.id === 'ai-verdict') fetchAiVerdict();
+              }}
               className={`modal-tab-btn ${activeTab === tab.id ? 'active' : 'inactive'}`}
             >
               {tab.label}
@@ -352,8 +308,12 @@ export default function ProfileDetailModal({ profile, onClose, onExpressInterest
                   </div>
                 ) : aiData ? (
                   <p style={{ fontSize: '13px', color: '#CBD5E1', lineHeight: '1.6', fontStyle: 'italic', margin: 0 }}>
-                    "{aiData.verdict}"
+                    &quot;{aiData.verdict}&quot;
                   </p>
+                ) : aiError ? (
+                  <div role="alert" style={{ fontSize: 12, color: '#FCA5A5', lineHeight: 1.5 }}>
+                    {aiError} No compatibility score has been generated.
+                  </div>
                 ) : null}
               </div>
 
@@ -447,7 +407,7 @@ export default function ProfileDetailModal({ profile, onClose, onExpressInterest
               )}
 
               {/* Initial state before tab opened */}
-              {!aiLoading && !aiData && (
+              {!aiLoading && !aiData && !aiError && (
                 <div style={{ textAlign: 'center', padding: '40px 20px', color: '#9CA3AF' }}>
                   <div style={{ fontSize: '40px', marginBottom: '12px' }}>🤖</div>
                   <p style={{ fontSize: '13px', fontWeight: 600 }}>Click the AI Compatibility Verdict tab to analyze this profile.</p>
@@ -637,22 +597,24 @@ export default function ProfileDetailModal({ profile, onClose, onExpressInterest
               <Calendar className="w-4 h-4" /> Schedule Parivar Meet
             </button>
 
-            {!showContactUnlocked && (
-              <button
-                onClick={() => setShowContactUnlocked(true)}
-                style={{ background: 'none', border: 'none', color: '#7A0026', fontSize: '12px', fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
-              >
-                <Lock className="w-4 h-4 text-[#D4AF37]" /> Unlock Direct Phone
-              </button>
-            )}
+            <div style={{ color: interestStatus === 'accepted' ? '#047857' : '#7A0026', fontSize: 12, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Lock className="w-4 h-4 text-[#D4AF37]" />
+              {interestStatus === 'accepted'
+                ? 'Connection accepted — use Messages to share contact details.'
+                : 'Contact and chat unlock only after the recipient accepts.'}
+            </div>
           </div>
 
           <button
-            onClick={() => onExpressInterest(profile.id)}
+            type="button"
+            onClick={() => { if (!interestStatus) onExpressInterest(profile.id); }}
+            disabled={Boolean(interestStatus)}
             className="btn-ruby"
             style={{
               fontSize: '13px',
               padding: '10px 24px',
+              cursor: interestStatus ? 'default' : 'pointer',
+              opacity: interestStatus ? 0.88 : 1,
               background: interestStatus === 'accepted' ? '#059669' : (interestStatus === 'declined' ? '#DC2626' : (interestStatus === 'sent' ? '#0D9488' : undefined)),
               borderColor: interestStatus === 'accepted' ? '#10B981' : (interestStatus === 'declined' ? '#EF4444' : (interestStatus === 'sent' ? '#14B8A6' : undefined))
             }}

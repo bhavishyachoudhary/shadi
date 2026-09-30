@@ -1,13 +1,15 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { MapContainer, TileLayer, Marker, Circle, Popup, useMap, ZoomControl } from 'react-leaflet';
+import React, { useState, useEffect, useMemo } from 'react';
+import { MapContainer, TileLayer, Marker, Circle, Popup, Tooltip, useMap, ZoomControl } from 'react-leaflet';
 import L from 'leaflet';
 import {
-  MapPin, ShieldCheck, Sparkles, Heart, Briefcase, GraduationCap,
-  X, Check, Video, Calendar, Globe, Sliders, Target,
-  Crown, Layers, RefreshCw, MessageCircle, Star, Search,
-  ChevronDown, ChevronUp, Crosshair, Eye, Filter, Plus, Compass
+  MapPin, ShieldCheck, Sparkles, Heart,
+  X, Video, Calendar, Target,
+  Crown, RefreshCw, MessageCircle, Star, Search,
+  ChevronDown, ChevronUp, ChevronLeft, ChevronRight, ArrowLeft,
+  Minimize2, Maximize2, Crosshair, Eye, Filter
 } from 'lucide-react';
 import { getMinDistanceToCenters } from '../utils/distance';
+import { mockLocations } from '../data/mockLocations';
 
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -15,6 +17,14 @@ L.Icon.Default.mergeOptions({
   iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
 });
+
+const hasCoordinates = value => value
+  && value.lat !== null
+  && value.lat !== undefined
+  && value.lng !== null
+  && value.lng !== undefined
+  && Number.isFinite(Number(value.lat))
+  && Number.isFinite(Number(value.lng));
 
 // ── Animated pulse ring for selected pin ──
 function buildPinIcon(color, border, emoji, isSelected, isOnline) {
@@ -58,49 +68,17 @@ function buildPinIcon(color, border, emoji, isSelected, isOnline) {
 function MapController({ flyTarget }) {
   const map = useMap();
   useEffect(() => {
-    if (flyTarget?.lat && flyTarget?.lng) {
+    if (hasCoordinates(flyTarget)) {
       map.flyTo([flyTarget.lat, flyTarget.lng], flyTarget.zoom || 8, { duration: 1.2, easeLinearity: 0.35 });
     }
-  }, [flyTarget]);
+  }, [flyTarget, map]);
   return null;
 }
 
-// Extensive Indian Cities Database including Haryana, Punjab, UP, Rajasthan, Metros & NRIs
+// Development catalog; the global Places service replaces this in the live-data phase.
 const CITIES_DATABASE = [
-  // Haryana Cities & Towns
-  { id: 'Sirsa', label: 'Sirsa', state: 'Haryana', emoji: '📍', lat: 29.5320, lng: 75.0318 },
-  { id: 'Hisar', label: 'Hisar', state: 'Haryana', emoji: '📍', lat: 29.1492, lng: 75.7217 },
-  { id: 'Gurugram', label: 'Gurugram', state: 'Haryana', emoji: '📍', lat: 28.4595, lng: 77.0266 },
-  { id: 'Ambala', label: 'Ambala', state: 'Haryana', emoji: '📍', lat: 30.3782, lng: 76.7767 },
-  { id: 'Rohtak', label: 'Rohtak', state: 'Haryana', emoji: '📍', lat: 28.8955, lng: 76.6066 },
-  { id: 'Panipat', label: 'Panipat', state: 'Haryana', emoji: '📍', lat: 29.3909, lng: 76.9635 },
-  { id: 'Karnal', label: 'Karnal', state: 'Haryana', emoji: '📍', lat: 29.6857, lng: 76.9905 },
-  { id: 'Faridabad', label: 'Faridabad', state: 'Haryana', emoji: '📍', lat: 28.4089, lng: 77.3178 },
-  { id: 'Yamunanagar', label: 'Yamunanagar', state: 'Haryana', emoji: '📍', lat: 30.1290, lng: 77.2674 },
-  { id: 'Sonipat', label: 'Sonipat', state: 'Haryana', emoji: '📍', lat: 28.9931, lng: 77.0151 },
-
-  // Punjab & Chandigarh
-  { id: 'Chandigarh', label: 'Chandigarh', state: 'UT', emoji: '📍', lat: 30.7333, lng: 76.7794 },
-  { id: 'Ludhiana', label: 'Ludhiana', state: 'Punjab', emoji: '📍', lat: 30.9010, lng: 75.8573 },
-  { id: 'Amritsar', label: 'Amritsar', state: 'Punjab', emoji: '📍', lat: 31.6340, lng: 74.8723 },
-
-  // Delhi NCR & UP
-  { id: 'Delhi', label: 'Delhi NCR', state: 'Delhi', emoji: '📍', lat: 28.6139, lng: 77.2090 },
-  { id: 'Noida', label: 'Noida', state: 'UP', emoji: '📍', lat: 28.5355, lng: 77.3910 },
-  { id: 'Ghaziabad', label: 'Ghaziabad', state: 'UP', emoji: '📍', lat: 28.6692, lng: 77.4538 },
-  { id: 'Lucknow', label: 'Lucknow', state: 'UP', emoji: '📍', lat: 26.8467, lng: 80.9462 },
-
-  // Rajasthan
-  { id: 'Jaipur', label: 'Jaipur', state: 'Rajasthan', emoji: '📍', lat: 26.9124, lng: 75.7873 },
-
-  // Major Metros & Global
-  { id: 'Bengaluru', label: 'Bengaluru', state: 'Karnataka', emoji: '📍', lat: 12.9716, lng: 77.5946 },
-  { id: 'Mumbai', label: 'Mumbai', state: 'Maharashtra', emoji: '📍', lat: 19.0760, lng: 72.8777 },
-  { id: 'Hyderabad', label: 'Hyderabad', state: 'Telangana', emoji: '📍', lat: 17.3850, lng: 78.4867 },
-  { id: 'Chennai', label: 'Chennai', state: 'Tamil Nadu', emoji: '📍', lat: 13.0827, lng: 80.2707 },
-  { id: 'Pune', label: 'Pune', state: 'Maharashtra', emoji: '📍', lat: 18.5204, lng: 73.8567 },
-  { id: 'NRI_USA', label: 'USA NRI', state: 'USA', emoji: '✈️', lat: 37.3382, lng: -121.8863 },
-  { id: 'All', label: 'All India', state: 'India', emoji: '🌍', lat: 22.0, lng: 79.0 },
+  ...mockLocations,
+  { id: 'All', label: 'All Locations', state: 'Worldwide', country: 'Worldwide', countryCode: 'ALL', emoji: '🌍', lat: 22.0, lng: 79.0 },
 ];
 
 const RADIUS_PRESETS = [
@@ -114,7 +92,7 @@ const RADIUS_PRESETS = [
 
 function pinStyle(profile, interestMap, selectedId) {
   const status = interestMap[profile.id];
-  const isOnline = profile.activeStatus ? profile.activeStatus.includes('Online') : (profile.id % 2 === 1);
+  const isOnline = Boolean(profile.activeStatus?.includes('Online') || profile.isOnline);
   const isBride  = profile.gender === 'Bride';
   const isSelected = selectedId === profile.id;
   let color = '#FFFFFF', border = '#7A0026';
@@ -131,12 +109,12 @@ export default function MapView({
   profiles = [],
   onExpressInterest,
   interestMap = {},
-  shortlistedIds = [],
-  onToggleShortlist,
   onSelectProfile,
   onOpenLifestyleReels,
   onOpenParivarMeet,
-  currentUser = null
+  onOpenGallery,
+  currentUser = null,
+  showAllProfiles = false
 }) {
   const [myLocation,     setMyLocation]     = useState({ lat: 12.9716, lng: 77.5946, city: 'Bengaluru' });
   const [showUpdateLoc,  setShowUpdateLoc]  = useState(false);
@@ -159,11 +137,20 @@ export default function MapView({
   const [citySearch,     setCitySearch]     = useState('');
   const [isSearchOpen,   setIsSearchOpen]   = useState(false);
 
+  // Sidebar layout: 'collapsed' | 'normal' | 'expanded'
+  const [sidebarState,   setSidebarState]   = useState('normal');
+  const sidebarColumn = sidebarState === 'collapsed'
+    ? '46px'
+    : sidebarState === 'expanded'
+      ? 'min(640px, 48vw)'
+      : '365px';
+
   /* ── Gender: Automatically show OPPOSITE of current user (Groom -> Bride, Bride -> Groom) ── */
   const genderTab = useMemo(() => {
+    if (showAllProfiles) return 'All';
     const g = currentUser?.gender || 'Groom';
     return g === 'Groom' ? 'Bride' : 'Groom';
-  }, [currentUser]);
+  }, [currentUser, showAllProfiles]);
 
   /* ── Compute distance + radius for EACH profile ── */
   const profilesWithDist = profiles.map(p => {
@@ -190,6 +177,7 @@ export default function MapView({
     return CITIES_DATABASE.filter(c =>
       c.label.toLowerCase().includes(q) ||
       c.state.toLowerCase().includes(q) ||
+      c.country.toLowerCase().includes(q) ||
       c.id.toLowerCase().includes(q)
     );
   }, [citySearch]);
@@ -249,7 +237,7 @@ export default function MapView({
     <div style={{ display: 'flex', flexDirection: 'column', backgroundColor: '#090E1A', height: 'calc(100vh - 70px)', overflow: 'hidden' }}>
 
       {/* ══ BODY ══ */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 365px', flex: 1, height: '100%' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: `1fr ${sidebarColumn}`, flex: 1, height: '100%', transition: 'grid-template-columns 0.25s ease' }}>
 
         {/* ── MAP SIDE ── */}
         <div style={{ position: 'relative', height: '100%' }}>
@@ -367,7 +355,7 @@ export default function MapView({
                               {c.emoji} {c.label}
                             </span>
                             <span style={{ fontSize: 9, fontWeight: 900, color: '#D4AF37', background: 'rgba(212,175,55,0.15)', padding: '2px 7px', borderRadius: 50 }}>
-                              {c.state}
+                              {c.state}{c.country !== 'India' ? `, ${c.country}` : ''}
                             </span>
                           </div>
                         ))}
@@ -491,7 +479,7 @@ export default function MapView({
                   {showUpdateLoc ? (
                     <div style={{ display:'flex', flexDirection:'column', gap:7 }}>
                       <select value={pendingCity} onChange={e=>setPendingCity(e.target.value)} style={{ width:'100%', padding:'6px 9px', borderRadius:9, fontSize:11, border:'1px solid rgba(212,175,55,0.5)', background:'rgba(255,255,255,0.07)', color:'#FFF', cursor:'pointer' }}>
-                        {CITIES_DATABASE.filter(c=>c.id!=='All').map(c=><option key={c.id} value={c.id} style={{ background:'#090E1A' }}>{c.emoji} {c.label} ({c.state})</option>)}
+                        {CITIES_DATABASE.filter(c=>c.id!=='All').map(c=><option key={c.id} value={c.id} style={{ background:'#090E1A' }}>{c.emoji} {c.label} ({c.state}{c.country !== 'India' ? `, ${c.country}` : ''})</option>)}
                       </select>
                       <div style={{ display:'flex', gap:5 }}>
                         <button onClick={handleUpdateLoc} style={{ flex:1, padding:6, borderRadius:8, fontSize:10, fontWeight:900, background:'#D4AF37', color:'#090E1A', border:'none', cursor:'pointer' }}>✓ Save</button>
@@ -580,7 +568,7 @@ export default function MapView({
               const c = typeof cityItem === 'object'
                 ? cityItem
                 : CITIES_DATABASE.find(x => x.id === cityItem);
-              if (!c || c.id === 'All' || !c.lat || !c.lng) return null;
+              if (!c || c.id === 'All' || !hasCoordinates(c)) return null;
               return (
                 <Circle
                   key={'rc-' + (c.id || idx)}
@@ -600,7 +588,7 @@ export default function MapView({
 
             {/* Profile Pins */}
             {displayed.map(p => {
-              if (!p.lat || !p.lng) return null;
+              if (!hasCoordinates(p)) return null;
               const { color, border, emoji, isSelected, isOnline } = pinStyle(p, interestMap, selectedProfile?.id);
               const mc = p.preferencesMatch ? p.preferencesMatch.filter(m=>m.isMatched).length : '-';
               const tc = p.preferencesMatch ? p.preferencesMatch.length : '-';
@@ -609,13 +597,66 @@ export default function MapView({
                   key={'pin-' + p.id}
                   position={[p.lat, p.lng]}
                   icon={buildPinIcon(color, border, emoji, isSelected, isOnline)}
+                  keyboard={true}
                   eventHandlers={{
                     click: () => {
                       setSelectedProfile(p);
                       setFlyTarget({ lat: p.lat, lng: p.lng, zoom: 11 });
-                    }
+                    },
+                    mouseover: (event) => event.target.openTooltip(),
+                    mouseout: (event) => event.target.closeTooltip(),
+                    focus: (event) => event.target.openTooltip(),
+                    blur: (event) => event.target.closeTooltip(),
                   }}
                 >
+                  <Tooltip
+                    direction="top"
+                    offset={[0, isSelected ? -64 : -52]}
+                    opacity={1}
+                    className="profile-hover-tooltip"
+                  >
+                    {(() => {
+                      const photoAllowed = p.photoPrivacy === 'Public' || interestMap[p.id] === 'accepted';
+                      return (
+                        <div style={{ width: 224 }}>
+                          <div style={{ position: 'relative', height: 116, overflow: 'hidden' }}>
+                            <img
+                              src={p.photo}
+                              alt=""
+                              style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', filter: photoAllowed ? 'none' : 'blur(9px)', transform: photoAllowed ? 'none' : 'scale(1.08)' }}
+                            />
+                            <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(9,14,26,0.92) 0%, rgba(9,14,26,0.15) 60%, transparent 100%)' }} />
+                            <div style={{ position: 'absolute', top: 8, left: 8, display: 'flex', gap: 6, alignItems: 'center' }}>
+                              <span style={{ fontSize: 9, fontWeight: 900, color: '#FFF', background: 'rgba(122,0,38,0.92)', border: '1px solid #D4AF37', padding: '2px 8px', borderRadius: 50 }}>
+                                {p.gender === 'Bride' ? '👰 Bride' : '🤵 Groom'}
+                              </span>
+                              {isOnline && (
+                                <span style={{ fontSize: 9, fontWeight: 800, color: '#065F46', background: '#D1FAE5', padding: '2px 7px', borderRadius: 50 }}>● Online</span>
+                              )}
+                            </div>
+                            {!photoAllowed && (
+                              <div style={{ position: 'absolute', top: 8, right: 8, fontSize: 9, fontWeight: 800, color: '#FDE68A', background: 'rgba(0,0,0,0.6)', padding: '2px 7px', borderRadius: 50 }}>🔒 Photo protected</div>
+                            )}
+                            <div style={{ position: 'absolute', bottom: 6, left: 8, right: 8 }}>
+                              <div style={{ fontSize: 13, fontWeight: 800, color: '#FFF', textShadow: '0 1px 3px rgba(0,0,0,0.6)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</div>
+                              <div style={{ fontSize: 10, fontWeight: 600, color: 'rgba(255,255,255,0.85)' }}>{p.age} yrs • {p.city}{p.country && p.country !== 'India' ? `, ${p.country}` : ''}</div>
+                            </div>
+                          </div>
+                          <div style={{ padding: '8px 10px', background: '#FFFFFF' }}>
+                            <div style={{ fontSize: 10, color: '#374151', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>🎓 {p.education}</div>
+                            <div style={{ fontSize: 10, color: '#374151', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: 2 }}>💼 {p.occupation}</div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 7 }}>
+                              <span style={{ fontSize: 10, fontWeight: 900, color: '#7A0026' }}>⭐ {p.matchScore}% match</span>
+                              <span style={{ fontSize: 9, fontWeight: 900, color: p.isInRadius ? '#065F46' : '#92400E', background: p.isInRadius ? '#D1FAE5' : '#FEF3C7', padding: '2px 8px', borderRadius: 50 }}>
+                                {p.isInRadius ? `🎯 ${p.minDistance} km` : `🔒 ${p.minDistance} km`}
+                              </span>
+                            </div>
+                            <div style={{ fontSize: 9, color: '#9CA3AF', fontWeight: 700, textAlign: 'center', marginTop: 7 }}>Click pin for full profile</div>
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </Tooltip>
                   <Popup maxWidth={265} closeButton={true}>
                     <div style={{ fontFamily:'system-ui', padding:2, minWidth:230 }}>
                       <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:8 }}>
@@ -648,27 +689,92 @@ export default function MapView({
         </div>
 
         {/* ── SIDEBAR ── */}
-        <div style={{ background:'linear-gradient(180deg,#090E1A 0%,#142030 100%)', borderLeft:'1px solid rgba(212,175,55,0.15)', display:'flex', flexDirection:'column', overflowY:'auto', maxHeight: 820 }}>
-          {selectedProfile ? (
-            <ProfileDetailPanel
-              profile={selectedProfile}
-              interestMap={interestMap}
-              onExpressInterest={onExpressInterest}
-              onSelectProfile={onSelectProfile}
-              onOpenLifestyleReels={onOpenLifestyleReels}
-              onOpenParivarMeet={onOpenParivarMeet}
-              radiusKm={radiusKm}
-              onClose={()=>setSelectedProfile(null)}
-            />
+        <div style={{ background:'linear-gradient(180deg,#FFFFFF 0%,#FBF6EE 100%)', borderLeft:'1px solid #EADFCB', display:'flex', flexDirection:'column', height:'100%', overflow:'hidden' }}>
+          {sidebarState === 'collapsed' ? (
+            <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:14, paddingTop:14 }}>
+              <button
+                type="button"
+                onClick={()=>setSidebarState('normal')}
+                title="Expand panel"
+                aria-label="Expand profiles panel"
+                style={{ width:32, height:32, borderRadius:9, border:'1px solid #D4AF37', background:'#FBF3DF', color:'#7A0026', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center' }}
+              >
+                <ChevronLeft size={16}/>
+              </button>
+              <div style={{ writingMode:'vertical-rl', transform:'rotate(180deg)', fontSize:10, fontWeight:900, letterSpacing:'1px', color:'#7A0026', textTransform:'uppercase' }}>
+                {selectedProfile ? 'Profile' : `${displayed.length} Matches`}
+              </div>
+            </div>
           ) : (
-            <ProfileListPanel
-              profiles={displayed}
-              interestMap={interestMap}
-              onSelect={p=>{
-                setSelectedProfile(p);
-                if (p.lat&&p.lng) setFlyTarget({ lat:p.lat, lng:p.lng, zoom:11 });
-              }}
-            />
+            <>
+              {/* Sidebar toolbar */}
+              <div style={{ flexShrink:0, display:'flex', alignItems:'center', justifyContent:'space-between', padding:'10px 12px', borderBottom:'1px solid #EADFCB', background:'linear-gradient(90deg,#FFFFFF,#FBF3E7)' }}>
+                <div style={{ display:'flex', alignItems:'center', gap:8, minWidth:0 }}>
+                  {selectedProfile && (
+                    <button
+                      type="button"
+                      onClick={()=>setSelectedProfile(null)}
+                      title="Back to matches"
+                      aria-label="Back to matches"
+                      style={{ width:28, height:28, borderRadius:8, border:'1px solid #E5DAC7', background:'#FFFFFF', color:'#7A0026', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}
+                    >
+                      <ArrowLeft size={15}/>
+                    </button>
+                  )}
+                  <span style={{ fontFamily:'Cinzel,serif', fontSize:13, fontWeight:900, color:'#7A0026', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                    {selectedProfile ? selectedProfile.name : `${displayed.length} Matches`}
+                  </span>
+                </div>
+                <div style={{ display:'flex', alignItems:'center', gap:6, flexShrink:0 }}>
+                  <button
+                    type="button"
+                    onClick={()=>setSidebarState(s => s === 'expanded' ? 'normal' : 'expanded')}
+                    title={sidebarState === 'expanded' ? 'Shrink panel' : 'Widen panel'}
+                    aria-label={sidebarState === 'expanded' ? 'Shrink panel' : 'Widen panel'}
+                    style={{ width:28, height:28, borderRadius:8, border:'1px solid #D4AF37', background:'#FBF3DF', color:'#7A0026', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center' }}
+                  >
+                    {sidebarState === 'expanded' ? <Minimize2 size={14}/> : <Maximize2 size={14}/>}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={()=>setSidebarState('collapsed')}
+                    title="Collapse panel"
+                    aria-label="Collapse profiles panel"
+                    style={{ width:28, height:28, borderRadius:8, border:'1px solid #E5DAC7', background:'#FFFFFF', color:'#7A0026', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center' }}
+                  >
+                    <ChevronRight size={16}/>
+                  </button>
+                </div>
+              </div>
+
+              {/* Scrollable panel body */}
+              <div className="sidebar-scroll" style={{ flex:1, minHeight:0, overflowY:'auto' }}>
+                {selectedProfile ? (
+                  <ProfileDetailPanel
+                    profile={selectedProfile}
+                    interestMap={interestMap}
+                    wide={sidebarState === 'expanded'}
+                    onExpressInterest={onExpressInterest}
+                    onSelectProfile={onSelectProfile}
+                    onOpenLifestyleReels={onOpenLifestyleReels}
+                    onOpenParivarMeet={onOpenParivarMeet}
+                    onOpenGallery={onOpenGallery}
+                    radiusKm={radiusKm}
+                    onClose={()=>setSelectedProfile(null)}
+                  />
+                ) : (
+                  <ProfileListPanel
+                    profiles={displayed}
+                    interestMap={interestMap}
+                    onExpressInterest={onExpressInterest}
+                    onSelect={p=>{
+                      setSelectedProfile(p);
+                      if (hasCoordinates(p)) setFlyTarget({ lat:p.lat, lng:p.lng, zoom:11 });
+                    }}
+                  />
+                )}
+              </div>
+            </>
           )}
         </div>
       </div>
@@ -677,7 +783,7 @@ export default function MapView({
 }
 
 /* ── Profile List (no pin selected) ── */
-function ProfileListPanel({ profiles, interestMap, onSelect }) {
+function ProfileListPanel({ profiles, interestMap, onExpressInterest, onSelect }) {
   const sorted = [...profiles].sort((a,b)=>{
     if (a.isInRadius!==b.isInRadius) return a.isInRadius?-1:1;
     return a.minDistance-b.minDistance;
@@ -689,40 +795,90 @@ function ProfileListPanel({ profiles, interestMap, onSelect }) {
     declined: { c:'#EF4444', l:'❌ Declined' },
   };
 
+  const heartConfig = status => {
+    if (status === 'accepted') return { fill: '#10B981', stroke: '#10B981', bg: '#E7F8F0', border: '#A7E8CE', title: 'Interest accepted' };
+    if (status === 'sent') return { fill: '#F43F5E', stroke: '#F43F5E', bg: '#FDECEF', border: '#F7B9C4', title: 'Interest sent' };
+    if (status === 'declined') return { fill: 'none', stroke: '#9CA3AF', bg: '#F3F4F6', border: '#E5E7EB', title: 'Interest declined' };
+    return { fill: 'none', stroke: '#C79A2E', bg: '#FBF3DF', border: '#E4C97A', title: 'Express interest' };
+  };
+
+  const inRangeCount = sorted.filter(p => p.isInRadius).length;
+
   return (
-    <div style={{ padding:14, display:'flex', flexDirection:'column', gap:8 }}>
-      <div style={{ paddingBottom:10, borderBottom:'1px solid rgba(212,175,55,0.18)', marginBottom:4 }}>
-        <div style={{ fontSize:11, fontWeight:900, color:'#D4AF37', textTransform:'uppercase', letterSpacing:'0.5px', marginBottom:2 }}>
-          {sorted.length} Profiles on Map
+    <div style={{ padding:14, display:'flex', flexDirection:'column', gap:10 }}>
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', paddingBottom:11, borderBottom:'1px solid #EADFCB' }}>
+        <div>
+          <div style={{ display:'flex', alignItems:'center', gap:7 }}>
+            <Sparkles size={14} style={{ color:'#D4AF37' }}/>
+            <span style={{ fontFamily:'Cinzel,serif', fontSize:15, fontWeight:900, color:'#7A0026' }}>{sorted.length} Matches</span>
+          </div>
+          <div style={{ fontSize:10, color:'#8A7F73', fontWeight:600, marginTop:3 }}>Tap a card for the full profile</div>
         </div>
-        <div style={{ fontSize:11, color:'rgba(255,255,255,0.45)' }}>Click a pin or select below</div>
+        <span className="chip" style={{ color:'#059669', background:'#E7F8F0', border:'1px solid #A7E8CE' }}>
+          🎯 {inRangeCount} in range
+        </span>
       </div>
+
       {sorted.length===0 && (
-        <div style={{ textAlign:'center', padding:'30px 0', color:'rgba(255,255,255,0.4)', fontSize:12 }}>
-          No profiles match current filters.<br/>Try adjusting radius or cities.
+        <div style={{ textAlign:'center', padding:'44px 16px', color:'#8A7F73' }}>
+          <Search size={26} style={{ opacity:0.5, marginBottom:8 }}/>
+          <div style={{ fontSize:12, fontWeight:700, color:'#5B5049' }}>No profiles match your filters</div>
+          <div style={{ fontSize:11, marginTop:4 }}>Try widening the radius or adding cities.</div>
         </div>
       )}
+
       {sorted.map(p=>{
         const s = interestMap[p.id];
         const st = STATUS[s];
+        const heart = heartConfig(s);
+        const pct = Math.max(0, Math.min(100, p.matchScore || 0));
+        const ringColor = pct >= 85 ? '#10B981' : pct >= 70 ? '#D4AF37' : '#F59E0B';
         return (
           <div
             key={p.id}
+            className={'match-card' + (p.isInRadius ? '' : ' match-card--out')}
             onClick={()=>onSelect(p)}
-            style={{ display:'flex', alignItems:'center', gap:9, padding:'9px 11px', borderRadius:13, border:'1.5px solid '+(p.isInRadius?'rgba(212,175,55,0.3)':'rgba(255,255,255,0.07)'), background:p.isInRadius?'rgba(212,175,55,0.07)':'rgba(255,255,255,0.03)', cursor:'pointer', transition:'all 0.18s' }}
+            role="button"
+            tabIndex={0}
+            onKeyDown={e=>{ if (e.key==='Enter' || e.key===' ') { e.preventDefault(); onSelect(p); } }}
+            title="Open full profile"
           >
-            <div style={{ position:'relative', flexShrink:0 }}>
-              <img src={p.photo} alt={p.name} style={{ width:42, height:42, borderRadius:'50%', objectFit:'cover', border:'2px solid '+(p.isInRadius?'#D4AF37':'rgba(255,255,255,0.2)') }}/>
-              <span style={{ position:'absolute', bottom:-2, right:-2, fontSize:10, background:'#090E1A', borderRadius:'50%', padding:1 }}>{p.gender==='Bride'?'👰':'🤵'}</span>
+            <div className="match-ring" style={{ background:`conic-gradient(${ringColor} ${pct * 3.6}deg, #E7DDCB 0deg)` }}>
+              <img className="match-ring__img" src={p.photo} alt={p.name}/>
+              <span className="match-ring__gender">{p.gender==='Bride'?'👰':'🤵'}</span>
+              <span className="match-ring__score">{pct}%</span>
             </div>
+
             <div style={{ flex:1, minWidth:0 }}>
-              <div style={{ fontSize:12, fontWeight:800, color:'#FFF', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{p.name}</div>
-              <div style={{ fontSize:10, color:'rgba(255,255,255,0.5)', fontWeight:600 }}>{p.age}y • {p.city} • ⭐ {p.matchScore}%</div>
-              {st && <div style={{ fontSize:10, fontWeight:800, color:st.c, marginTop:2 }}>{st.l}</div>}
+              <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+                <span style={{ fontSize:13, fontWeight:800, color:'#1F191D', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{p.name}</span>
+                {p.isVerified && <ShieldCheck size={13} style={{ color:'#2563EB', flexShrink:0 }}/>}
+              </div>
+              <div style={{ fontSize:10.5, color:'#6B7280', fontWeight:600, marginTop:2, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                {p.age} yrs • {p.city}{p.country && p.country !== 'India' ? `, ${p.country}` : ''}
+              </div>
+              <div style={{ display:'flex', flexWrap:'wrap', gap:5, marginTop:7 }}>
+                <span className="chip" style={{ color:p.isInRadius?'#059669':'#B45309', background:p.isInRadius?'#E7F8F0':'#FDF3E2' }}>
+                  {p.isInRadius?'📍':'🔒'} {p.minDistance} km
+                </span>
+                {p.religion && (
+                  <span className="chip" style={{ color:'#6B5E50', background:'#F2EADD' }}>{p.religion}</span>
+                )}
+                {st && <span className="chip" style={{ color:st.c, background:'#F2EADD' }}>{st.l}</span>}
+              </div>
             </div>
-            <div style={{ fontSize:9, fontWeight:900, color:p.isInRadius?'#10B981':'#F59E0B', background:p.isInRadius?'rgba(16,185,129,0.13)':'rgba(245,158,11,0.13)', padding:'2px 7px', borderRadius:'50px', flexShrink:0, textAlign:'center' }}>
-              {p.isInRadius?'📍 '+p.minDistance+'km':'🔒 '+p.minDistance+'km'}
-            </div>
+
+            <button
+              type="button"
+              className="heart-btn"
+              title={heart.title}
+              aria-label={heart.title}
+              disabled={Boolean(s)}
+              onClick={(e)=>{ e.stopPropagation(); if (!s) onExpressInterest?.(p.id); }}
+              style={{ background: heart.bg, border:'1.5px solid '+heart.border }}
+            >
+              <Heart size={17} fill={heart.fill} stroke={heart.stroke} strokeWidth={2.2} />
+            </button>
           </div>
         );
       })}
@@ -733,13 +889,16 @@ function ProfileListPanel({ profiles, interestMap, onSelect }) {
 /* ── Profile Detail (pin selected) ── */
 function ProfileDetailPanel({
   profile, interestMap, onExpressInterest,
-  onSelectProfile, onOpenLifestyleReels, onOpenParivarMeet, radiusKm, onClose
+  onSelectProfile, onOpenLifestyleReels, onOpenParivarMeet, onOpenGallery, radiusKm, onClose, wide = false
 }) {
+  const openGallery = onOpenGallery || onSelectProfile;
+  const photoCount = (profile.photos && profile.photos.length) ? profile.photos.length : 1;
+  const hasReel = Boolean(profile.lifestyleVideo);
   const status = interestMap[profile.id];
   const mc = profile.preferencesMatch?.filter(m=>m.isMatched).length ?? 8;
   const tc = profile.preferencesMatch?.length ?? 8;
   const isBride = profile.gender==='Bride';
-  const isOnline = profile.activeStatus ? profile.activeStatus.includes('Online') : (profile.id%2===1);
+  const isOnline = Boolean(profile.activeStatus?.includes('Online') || profile.isOnline);
   const hasTalked = status==='accepted';
 
   const btnCfg = status==='accepted'
@@ -752,95 +911,182 @@ function ProfileDetailPanel({
 
   return (
     <div style={{ display:'flex', flexDirection:'column' }}>
-      {/* Photo */}
-      <div style={{ position:'relative', height:200, flexShrink:0, overflow:'hidden', cursor:'pointer' }} onClick={()=>onSelectProfile(profile)}>
+      {/* Photo header — the only element that opens the full-screen modal */}
+      <div
+        role="button"
+        tabIndex={0}
+        title="View photos & reel"
+        aria-label={`Open ${profile.name} photos and reel`}
+        className="detail-hero"
+        style={{ position:'relative', height: wide ? 280 : 236, flexShrink:0, overflow:'hidden', cursor:'pointer' }}
+        onClick={()=>openGallery(profile)}
+        onKeyDown={e=>{ if (e.key==='Enter' || e.key===' ') { e.preventDefault(); openGallery(profile); } }}
+      >
         <img src={profile.photo} alt={profile.name} style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }}/>
-        <div style={{ position:'absolute', inset:0, background:'linear-gradient(to top,rgba(0,0,0,0.9) 0%,rgba(0,0,0,0.15) 55%,transparent 100%)' }}/>
-        <button onClick={e=>{e.stopPropagation();onClose();}} style={{ position:'absolute', top:9, right:9, width:27, height:27, borderRadius:'50%', background:'rgba(0,0,0,0.7)', color:'#FFF', border:'none', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', fontSize:12 }}>✕</button>
-        {hasTalked && (
-          <div style={{ position:'absolute', top:9, left:'50%', transform:'translateX(-50%)', background:'rgba(16,185,129,0.96)', color:'#FFF', fontSize:9, fontWeight:900, padding:'3px 12px', borderRadius:'50px', border:'1.5px solid #34D399', display:'flex', alignItems:'center', gap:4, whiteSpace:'nowrap', boxShadow:'0 4px 14px rgba(16,185,129,0.45)' }}>
-            <MessageCircle size={10}/> Both Connected Before ✓
+        <div style={{ position:'absolute', inset:0, background:'linear-gradient(to top,rgba(9,14,26,0.97) 0%,rgba(9,14,26,0.45) 42%,rgba(9,14,26,0.05) 100%)' }}/>
+
+        {/* Top row */}
+        <div style={{ position:'absolute', top:10, left:10, right:10, display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+          <span className="chip" style={{ color:'#F4E8C1', background:'rgba(122,0,38,0.85)', border:'1px solid #D4AF37', fontSize:10, padding:'3px 10px' }}>
+            {isBride?'👰 Bride':'🤵 Groom'}
+          </span>
+          <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+            <span className="chip" style={{ color:isOnline?'#6EE7B7':'#D1D5DB', background:'rgba(0,0,0,0.55)', border:'1px solid rgba(255,255,255,0.2)', fontSize:10, padding:'3px 9px' }}>
+              <span style={{ width:6, height:6, borderRadius:'50%', background:isOnline?'#34D399':'#9CA3AF', display:'inline-block' }}/>{isOnline?'Online':'Away'}
+            </span>
+            <button onClick={e=>{e.stopPropagation();onClose();}} title="Back to list" aria-label="Back to list" style={{ width:28, height:28, borderRadius:'50%', background:'rgba(0,0,0,0.6)', color:'#FFF', border:'1px solid rgba(255,255,255,0.2)', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center' }}><X size={14}/></button>
           </div>
-        )}
-        <div style={{ position:'absolute', top:9, left:9, background:'rgba(0,0,0,0.74)', color:'#FFF', fontSize:9, fontWeight:800, padding:'2px 9px', borderRadius:'50px' }}>{isBride?'👰 BRIDE':'🤵 GROOM'}</div>
-        <div style={{ position:'absolute', top:9, right:42, background:isOnline?'rgba(6,78,59,0.9)':'rgba(0,0,0,0.55)', color:isOnline?'#34D399':'#9CA3AF', fontSize:9, fontWeight:800, padding:'2px 9px', borderRadius:'50px', display:'flex', alignItems:'center', gap:3 }}>
-          <span style={{ width:5, height:5, borderRadius:'50%', background:isOnline?'#34D399':'#9CA3AF', display:'inline-block' }}/>{isOnline?'Online':'Away'}
         </div>
-        <div style={{ position:'absolute', bottom:9, left:9, background:'#7A0026', color:'#D4AF37', fontSize:10, fontWeight:900, padding:'3px 11px', borderRadius:'50px', border:'1px solid #D4AF37', display:'flex', alignItems:'center', gap:3 }}>
-          <Star size={10} fill="#D4AF37" stroke="none"/> {profile.matchScore}% ({mc}/{tc})
+
+        {/* Gallery hint */}
+        <div className="detail-hero__hint" style={{ position:'absolute', top:'42%', left:'50%', transform:'translate(-50%,-50%)', display:'flex', alignItems:'center', gap:5, background:'rgba(0,0,0,0.55)', color:'#FDE68A', fontSize:10, fontWeight:800, padding:'5px 12px', borderRadius:'50px', border:'1px solid rgba(212,175,55,0.5)' }}>
+          <Eye size={11}/> View {photoCount} photo{photoCount>1?'s':''}{hasReel?' + reel':''}
+        </div>
+        {/* Media count badge */}
+        <div style={{ position:'absolute', top:46, left:10, display:'flex', gap:6 }}>
+          <span className="chip" style={{ color:'#FFF', background:'rgba(0,0,0,0.55)', border:'1px solid rgba(255,255,255,0.25)', fontSize:9, padding:'2px 8px' }}>📷 {photoCount}</span>
+          {hasReel && <span className="chip" style={{ color:'#FCA5A5', background:'rgba(0,0,0,0.55)', border:'1px solid rgba(239,68,68,0.5)', fontSize:9, padding:'2px 8px' }}>🎬 Reel</span>}
+        </div>
+
+        {/* Identity */}
+        <div style={{ position:'absolute', left:14, right:14, bottom:12 }}>
+          <div style={{ display:'flex', alignItems:'center', gap:7 }}>
+            <h3 style={{ fontFamily:'Cinzel,serif', fontSize:20, fontWeight:900, color:'#FFF', margin:0, textShadow:'0 2px 8px rgba(0,0,0,0.6)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{profile.name}</h3>
+            {profile.isVerified && <ShieldCheck size={16} style={{ color:'#60A5FA', flexShrink:0 }}/>}
+          </div>
+          <div style={{ fontSize:11, color:'rgba(255,255,255,0.82)', fontWeight:600, marginTop:2 }}>
+            {profile.age} yrs • {profile.height} • {profile.religion}{profile.caste ? ` (${profile.caste})` : ''}
+          </div>
+          <div style={{ display:'flex', flexWrap:'wrap', gap:6, marginTop:8 }}>
+            <span className="chip" style={{ color:'#1F191D', background:'#D4AF37', fontSize:10, padding:'3px 10px' }}>
+              <Star size={10} fill="#1F191D" stroke="none"/> {profile.matchScore}% • {mc}/{tc}
+            </span>
+            {hasTalked && (
+              <span className="chip" style={{ color:'#FFF', background:'rgba(16,185,129,0.92)', border:'1px solid #34D399', fontSize:10, padding:'3px 10px' }}>
+                <MessageCircle size={10}/> Connected
+              </span>
+            )}
+          </div>
         </div>
       </div>
 
       {/* Content */}
-      <div style={{ padding:14, display:'flex', flexDirection:'column', gap:11, overflowY:'auto' }}>
-        {/* Name */}
-        <div>
-          <div onClick={()=>onSelectProfile(profile)} style={{ cursor:'pointer', display:'flex', alignItems:'center', gap:7, marginBottom:3 }}>
-            <h3 style={{ fontFamily:'Cinzel,serif', fontSize:17, fontWeight:900, color:'#FFF', margin:0 }}>{profile.name}</h3>
-            {profile.isVerified && <ShieldCheck size={14} style={{ color:'#3B82F6', flexShrink:0 }}/>}
-            <span style={{ fontSize:9, fontWeight:800, color:'#7A0026', background:'#FEF2F2', padding:'2px 7px', borderRadius:'50px', border:'1px solid #FECACA' }}>Full Bio ↗</span>
-          </div>
-          <p style={{ fontSize:11, color:'rgba(255,255,255,0.55)', fontWeight:600, margin:0 }}>{profile.age}y • {profile.height} • {profile.religion} ({profile.caste})</p>
+      <div style={{ padding:14, display:'flex', flexDirection:'column', gap:11 }}>
+        {/* Quick trait chips */}
+        <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
+          {profile.motherTongue && <span className="chip" style={{ color:'rgba(255,255,255,0.8)', background:'rgba(255,255,255,0.07)', fontSize:10, padding:'3px 10px' }}>🗣️ {profile.motherTongue}</span>}
+          {profile.diet && <span className="chip" style={{ color:'rgba(255,255,255,0.8)', background:'rgba(255,255,255,0.07)', fontSize:10, padding:'3px 10px' }}>🍽️ {profile.diet}</span>}
+          {profile.manglik && <span className="chip" style={{ color:'rgba(255,255,255,0.8)', background:'rgba(255,255,255,0.07)', fontSize:10, padding:'3px 10px' }}>✨ Manglik: {profile.manglik}</span>}
+          {profile.isNri && <span className="chip" style={{ color:'#93C5FD', background:'rgba(59,130,246,0.14)', fontSize:10, padding:'3px 10px' }}>✈️ NRI</span>}
         </div>
 
         {/* Radius badge */}
         {profile.isInRadius ? (
-          <div style={{ fontSize:11, fontWeight:900, color:'#10B981', background:'rgba(16,185,129,0.1)', padding:'7px 13px', borderRadius:11, border:'1px solid rgba(16,185,129,0.28)', display:'flex', alignItems:'center', gap:5 }}>
-            <MapPin size={11} style={{ color:'#10B981' }}/> 🎯 In-Radius — {profile.minDistance} km from {profile.nearestCenterName}
+          <div style={{ fontSize:11, fontWeight:800, color:'#10B981', background:'rgba(16,185,129,0.1)', padding:'8px 13px', borderRadius:12, border:'1px solid rgba(16,185,129,0.28)', display:'flex', alignItems:'center', gap:6 }}>
+            <MapPin size={12} style={{ color:'#10B981' }}/> {profile.minDistance} km from {profile.nearestCenterName}
           </div>
         ) : (
-          <div style={{ background:'rgba(245,158,11,0.09)', border:'1px solid rgba(245,158,11,0.3)', padding:'9px 13px', borderRadius:11 }}>
-            <div style={{ fontSize:11, fontWeight:900, color:'#F59E0B', display:'flex', alignItems:'center', gap:4, marginBottom:3 }}><Crown size={11} style={{ color:'#F59E0B' }}/> Out of Radius — {profile.minDistance} km away</div>
-            <div style={{ fontSize:10, color:'rgba(255,255,255,0.5)', fontWeight:700 }}>Outside your {radiusKm} km range • Pan-India Plan required</div>
+          <div style={{ background:'rgba(245,158,11,0.09)', border:'1px solid rgba(245,158,11,0.3)', padding:'9px 13px', borderRadius:12 }}>
+            <div style={{ fontSize:11, fontWeight:800, color:'#F59E0B', display:'flex', alignItems:'center', gap:5, marginBottom:2 }}><Crown size={12} style={{ color:'#F59E0B' }}/> {profile.minDistance} km away — out of range</div>
+            <div style={{ fontSize:10, color:'rgba(255,255,255,0.5)', fontWeight:600 }}>Outside your {radiusKm} km radius</div>
           </div>
         )}
 
-        {/* Details */}
-        <div style={{ background:'rgba(255,255,255,0.05)', padding:'11px 13px', borderRadius:13, border:'1px solid rgba(255,255,255,0.08)', display:'flex', flexDirection:'column', gap:7, fontSize:11, color:'rgba(255,255,255,0.8)', fontWeight:700 }}>
-          <div style={{ display:'flex', alignItems:'flex-start', gap:6 }}><GraduationCap size={12} style={{ color:'#D4AF37', flexShrink:0, marginTop:1 }}/><span>{profile.education}</span></div>
-          <div style={{ display:'flex', alignItems:'flex-start', gap:6 }}><Briefcase size={12} style={{ color:'#D4AF37', flexShrink:0, marginTop:1 }}/><span>{profile.occupation} • {profile.income}</span></div>
-          <div style={{ display:'flex', alignItems:'center', gap:6 }}><MapPin size={12} style={{ color:'#D4AF37', flexShrink:0 }}/><span>{profile.mapArea||profile.city}, {profile.state}</span></div>
-          {profile.visaStatus && <div style={{ display:'flex', alignItems:'center', gap:6 }}><Globe size={12} style={{ color:'#D4AF37', flexShrink:0 }}/><span>{profile.visaStatus}</span></div>}
-          <div style={{ display:'flex', alignItems:'center', gap:6 }}><Sparkles size={12} style={{ color:'#D4AF37', flexShrink:0 }}/><span>Rashi: {profile.rashi} • Gotra: {profile.gotra||'N/A'}</span></div>
-        </div>
-
-        {/* Buttons */}
+        {/* Interest heart + actions */}
         <div style={{ display:'flex', flexDirection:'column', gap:7 }}>
           <button
-            onClick={()=>onExpressInterest(profile.id)}
-            style={{ width:'100%', padding:9, borderRadius:'50px', fontSize:12, fontWeight:900, border:'1.5px solid '+btnCfg.bc, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:6, transition:'all 0.18s', background:btnCfg.bg, color:btnCfg.cl }}
+            onClick={()=>{ if (!status) onExpressInterest(profile.id); }}
+            disabled={Boolean(status)}
+            style={{ width:'100%', padding:10, borderRadius:'50px', fontSize:12, fontWeight:900, border:'1.5px solid '+btnCfg.bc, cursor: status ? 'default' : 'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:7, transition:'all 0.18s', background:btnCfg.bg, color:btnCfg.cl }}
           >
-            {status==='accepted'&&<><Check size={14}/>Interest Accepted</>}
-            {status==='declined'&&<><X size={14}/>Interest Declined</>}
-            {status==='sent'&&<><Heart size={14} fill="white" stroke="none"/>Interest Sent</>}
-            {!status&&<><Heart size={14} fill="#D4AF37" stroke="none"/>Express Interest</>}
+            {status==='accepted'&&<><Heart size={15} fill="#FFFFFF" stroke="none"/>Interest Accepted</>}
+            {status==='declined'&&<><Heart size={15} fill="none" stroke="#FFFFFF" strokeWidth={2.4}/>Interest Declined</>}
+            {status==='sent'&&<><Heart size={15} fill="#FFFFFF" stroke="none"/>Interest Sent</>}
+            {!status&&<><Heart size={15} fill="#D4AF37" stroke="none"/>Express Interest</>}
           </button>
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:7 }}>
-            <button onClick={()=>onSelectProfile(profile)} style={{ padding:8, borderRadius:'50px', fontSize:11, fontWeight:800, background:'rgba(212,175,55,0.14)', color:'#D4AF37', border:'1px solid rgba(212,175,55,0.38)', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:4 }}><Eye size={12}/>Full Bio</button>
-            <button onClick={()=>onOpenParivarMeet(profile)} style={{ padding:8, borderRadius:'50px', fontSize:11, fontWeight:800, background:'rgba(255,255,255,0.06)', color:'rgba(255,255,255,0.78)', border:'1px solid rgba(255,255,255,0.13)', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:4 }}><Calendar size={12}/>Parivar</button>
+          <div style={{ display:'grid', gridTemplateColumns: profile.lifestyleVideo ? '1fr 1fr' : '1fr', gap:7 }}>
+            <button onClick={()=>onOpenParivarMeet(profile)} style={{ padding:8, borderRadius:'50px', fontSize:11, fontWeight:800, background:'rgba(255,255,255,0.06)', color:'rgba(255,255,255,0.78)', border:'1px solid rgba(255,255,255,0.13)', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:4 }}><Calendar size={12}/>Parivar Meet</button>
+            {profile.lifestyleVideo && (
+              <button onClick={()=>onOpenLifestyleReels(profile)} style={{ padding:8, borderRadius:'50px', fontSize:11, fontWeight:800, background:'rgba(0,0,0,0.35)', color:'#D4AF37', border:'1.5px solid #D4AF37', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:5 }}>
+                <Video size={12} style={{ color:'#EF4444' }}/> Reel
+              </button>
+            )}
           </div>
-          {profile.lifestyleVideo && (
-            <button onClick={()=>onOpenLifestyleReels(profile)} style={{ width:'100%', padding:8, borderRadius:'50px', fontSize:11, fontWeight:800, background:'rgba(0,0,0,0.35)', color:'#D4AF37', border:'1.5px solid #D4AF37', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:5 }}>
-              <Video size={12} style={{ color:'#EF4444' }}/> Watch Lifestyle Reel ({profile.lifestyleVideo.duration})
-            </button>
-          )}
         </div>
 
-        {/* Preference match */}
+        {/* Full detail sections — two columns when the panel is widened */}
+        <div style={{ display:'grid', gridTemplateColumns: wide ? '1fr 1fr' : '1fr', gap:11, alignItems:'start' }}>
+        {/* About */}
+        {profile.about && (
+          <SidebarSection title="About">
+            <p style={{ fontSize:11, lineHeight:1.6, color:'rgba(255,255,255,0.72)', fontWeight:600, margin:0 }}>{profile.about}</p>
+          </SidebarSection>
+        )}
+
+        {/* Career & Education */}
+        <SidebarSection title="Career & Education">
+          <SidebarRow label="Education" value={profile.education} />
+          <SidebarRow label="Occupation" value={profile.occupation} />
+          <SidebarRow label="Income" value={profile.income} />
+          {profile.relocationFlexibility && <SidebarRow label="Relocation" value={profile.relocationFlexibility} />}
+        </SidebarSection>
+
+        {/* Family */}
+        {profile.family && (
+          <SidebarSection title="Family Background">
+            {profile.family.father && <SidebarRow label="Father" value={profile.family.father} />}
+            {profile.family.mother && <SidebarRow label="Mother" value={profile.family.mother} />}
+            {profile.family.siblings && <SidebarRow label="Siblings" value={profile.family.siblings} />}
+            {profile.family.familyType && <SidebarRow label="Family Type" value={profile.family.familyType} />}
+            {profile.family.familyIncome && <SidebarRow label="Family Income" value={profile.family.familyIncome} />}
+            {profile.family.hometown && <SidebarRow label="Hometown" value={profile.family.hometown} />}
+          </SidebarSection>
+        )}
+
+        {/* Kundali & Astro */}
+        <SidebarSection title="Kundali & Astro">
+          <SidebarRow label="Rashi" value={profile.rashi || 'N/A'} />
+          <SidebarRow label="Nakshatra" value={profile.nakshatra || 'N/A'} />
+          <SidebarRow label="Gotra" value={profile.gotra || 'N/A'} />
+          <SidebarRow label="Manglik" value={profile.manglik || 'N/A'} />
+          {profile.timeOfBirth && <SidebarRow label="Birth Time" value={profile.timeOfBirth} />}
+          {profile.placeOfBirth && <SidebarRow label="Birth Place" value={profile.placeOfBirth} />}
+        </SidebarSection>
+
+        {/* Preference match — full list */}
         {profile.preferencesMatch && profile.preferencesMatch.length>0 && (
-          <div>
-            <div style={{ fontSize:10, fontWeight:900, color:'#D4AF37', textTransform:'uppercase', letterSpacing:'0.5px', marginBottom:7 }}>Preference Match</div>
-            {profile.preferencesMatch.slice(0,6).map((pref,i)=>(
-              <div key={i} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', fontSize:10, fontWeight:700, marginBottom:5 }}>
-                <span style={{ color:'rgba(255,255,255,0.55)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', maxWidth:148 }}>{pref.criteria}</span>
-                <span style={{ color:pref.isMatched?'#10B981':'#EF4444', background:pref.isMatched?'rgba(16,185,129,0.13)':'rgba(239,68,68,0.13)', padding:'2px 7px', borderRadius:'50px', fontWeight:900, flexShrink:0 }}>
+          <SidebarSection title={`Preference Match (${mc}/${tc})`}>
+            {profile.preferencesMatch.map((pref,i)=>(
+              <div key={i} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8, fontSize:10, fontWeight:700, marginBottom:6 }}>
+                <span style={{ color:'rgba(255,255,255,0.6)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', flex:1 }}>{pref.criteria}</span>
+                <span style={{ color:pref.isMatched?'#10B981':'#EF4444', background:pref.isMatched?'rgba(16,185,129,0.13)':'rgba(239,68,68,0.13)', padding:'2px 8px', borderRadius:'50px', fontWeight:900, flexShrink:0 }}>
                   {pref.isMatched?'✓ Match':'✗ Miss'}
                 </span>
               </div>
             ))}
-          </div>
+          </SidebarSection>
         )}
+        </div>
       </div>
+    </div>
+  );
+}
+
+/* ── Sidebar full-profile helpers ── */
+function SidebarSection({ title, children }) {
+  return (
+    <div className="detail-section">
+      <div className="detail-section__title">{title}</div>
+      {children}
+    </div>
+  );
+}
+
+function SidebarRow({ label, value }) {
+  return (
+    <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:10, padding:'5px 0', borderBottom:'1px solid rgba(255,255,255,0.05)' }}>
+      <span style={{ fontSize:10, fontWeight:700, color:'rgba(255,255,255,0.5)', flexShrink:0, textTransform:'uppercase', letterSpacing:'0.3px' }}>{label}</span>
+      <span style={{ fontSize:11.5, fontWeight:700, color:'rgba(255,255,255,0.9)', textAlign:'right' }}>{value}</span>
     </div>
   );
 }

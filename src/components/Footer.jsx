@@ -13,10 +13,10 @@ export default function Footer({ onOpenVIP }) {
             <ShieldCheck className="w-8 h-8 text-[#0066CC]" style={{ flexShrink: 0 }} />
             <div>
               <h5 style={{ fontSize: '12px', fontWeight: 800, color: '#FFFFFF', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                100% Aadhaar Verified
+                Contact Verification
               </h5>
               <p style={{ fontSize: '11px', color: '#9CA3AF', marginTop: '2px' }}>
-                Govt ID verified profile credentials
+                Email and mobile verification status
               </p>
             </div>
           </div>
@@ -25,10 +25,10 @@ export default function Footer({ onOpenVIP }) {
             <Lock className="w-8 h-8 text-[#D4AF37]" style={{ flexShrink: 0 }} />
             <div>
               <h5 style={{ fontSize: '12px', fontWeight: 800, color: '#FFFFFF', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                Photo Privacy Control
+                Consent-Based Connections
               </h5>
               <p style={{ fontSize: '11px', color: '#9CA3AF', marginTop: '2px' }}>
-                Photos visible only on approval
+                Chat opens only after acceptance
               </p>
             </div>
           </div>
@@ -49,10 +49,10 @@ export default function Footer({ onOpenVIP }) {
             <Server className="w-8 h-8 text-emerald-400" style={{ flexShrink: 0 }} />
             <div>
               <h5 style={{ fontSize: '12px', fontWeight: 800, color: '#FFFFFF', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                GoDaddy Ready
+                Node API Architecture
               </h5>
               <p style={{ fontSize: '11px', color: '#9CA3AF', marginTop: '2px' }}>
-                Optimized for Python Flask & Node cPanel
+                Designed for Node.js and MySQL deployment
               </p>
             </div>
           </div>
@@ -93,7 +93,7 @@ export default function Footer({ onOpenVIP }) {
             </h5>
             <ul style={{ listStyle: 'none', spaceY: '8px', color: '#9CA3AF', lineHeight: '2' }}>
               <li><a href="#" style={{ color: '#9CA3AF', textDecoration: 'none' }}>36 Gunas Horoscope Calculator</a></li>
-              <li><a href="#" style={{ color: '#9CA3AF', textDecoration: 'none' }}>Aadhaar Verification Check</a></li>
+              <li><a href="#" style={{ color: '#9CA3AF', textDecoration: 'none' }}>Profile Verification Status</a></li>
               <li><button onClick={onOpenVIP} style={{ background: 'none', border: 'none', color: '#D4AF37', fontWeight: 800, cursor: 'pointer', padding: 0 }}>VIP Gold Membership</button></li>
               <li><a href="#" style={{ color: '#9CA3AF', textDecoration: 'none' }}>Success Marriage Stories</a></li>
             </ul>
@@ -109,14 +109,14 @@ export default function Footer({ onOpenVIP }) {
               Email: support@bandhanmatrimony.com
             </p>
             <span style={{ display: 'inline-block', padding: '4px 12px', backgroundColor: 'rgba(6, 78, 59, 0.8)', color: '#6EE7B7', fontWeight: 800, borderRadius: '50px', fontSize: '10px' }}>
-              GoDaddy Shared Hosting Ready (Python Flask WSGI)
+              Deployment configuration in progress
             </span>
           </div>
         </div>
 
         {/* Bottom Copyright */}
         <div style={{ paddingTop: '24px', borderTop: '1px solid #2D1A24', display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '16px', fontSize: '12px', color: '#6B7280' }}>
-          <p>© 2026 Bandhan Matrimony (Shaadi & Jeevansathi Platform). All rights reserved.</p>
+          <p>© 2026 Bandhan Matrimony. All rights reserved.</p>
           <div style={{ display: 'flex', gap: '16px' }}>
             <a href="#" style={{ color: '#9CA3AF', textDecoration: 'none' }}>Privacy Policy</a>
             <a href="#" style={{ color: '#9CA3AF', textDecoration: 'none' }}>Terms of Use</a>

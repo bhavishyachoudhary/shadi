@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, CheckCircle, ShieldCheck, Sparkles, User, Briefcase, GraduationCap, Upload, ArrowRight, ArrowLeft } from 'lucide-react';
+import { X, CheckCircle, ShieldCheck, Upload, ArrowRight, ArrowLeft } from 'lucide-react';
 
 export default function RegistrationWizard({ onClose, onRegisterSuccess }) {
   const [step, setStep] = useState(1);
@@ -272,9 +272,9 @@ export default function RegistrationWizard({ onClose, onRegisterSuccess }) {
               <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center mx-auto mb-2">
                 <ShieldCheck className="w-8 h-8" />
               </div>
-              <h4 className="font-heading text-xl font-bold text-[#7A0026]">5. Aadhaar Verification & Photo Upload</h4>
+              <h4 className="font-heading text-xl font-bold text-[#7A0026]">5. Profile Photo</h4>
               <p className="text-xs text-gray-600 max-w-md mx-auto">
-                Profiles with verified Govt ID get 5x more responses and the trusted Blue Verification Tick.
+                Add a recent profile photo. Verification badges appear only after the relevant check is completed.
               </p>
 
               <div className="p-6 border-2 border-dashed border-[#D4AF37] rounded-2xl bg-amber-50/50">

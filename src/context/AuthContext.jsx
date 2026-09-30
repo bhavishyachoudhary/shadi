@@ -1,41 +1,76 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
+import AuthContext from './authContext';
 
-const AuthContext = createContext(null);
+function normalizeAuthenticatedUser(userData) {
+  if (!userData?.id || !userData?.token) {
+    throw new Error('Bandhan authentication requires a server-issued user ID and token.');
+  }
+
+  return {
+    id: String(userData.id),
+    name: userData.name || userData.fullName || '',
+    email: userData.email || '',
+    mobile: userData.mobile || '',
+    gender: userData.gender || '',
+    photo: userData.photo || null,
+    isVerified: userData.isVerified
+      ?? Boolean(userData.isEmailVerified || userData.isMobileVerified),
+    isEmailVerified: Boolean(userData.isEmailVerified),
+    isMobileVerified: Boolean(userData.isMobileVerified),
+    isApproved: Boolean(userData.isApproved),
+    profileComplete: Boolean(userData.profileComplete),
+    loginMethod: userData.loginMethod || 'mobile',
+    token: userData.token,
+  };
+}
+
+function readStoredUser() {
+  try {
+    const saved = localStorage.getItem('bandhan_auth');
+    if (!saved) return null;
+
+    const parsed = JSON.parse(saved);
+    return parsed?.id && parsed?.token ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function readOAuthCallbackUser() {
+  const queryAuth = new URLSearchParams(window.location.search).get('auth');
+  const hashAuth = new URLSearchParams(window.location.hash.replace(/^#/, '')).get('auth');
+  const callbackPayload = hashAuth || queryAuth;
+  if (!callbackPayload) return null;
+
+  try {
+    return normalizeAuthenticatedUser(JSON.parse(callbackPayload));
+  } catch {
+    return null;
+  }
+}
 
 export function AuthProvider({ children }) {
-  const [authUser, setAuthUser] = useState(() => {
-    try {
-      const saved = localStorage.getItem('bandhan_auth');
-      return saved ? JSON.parse(saved) : null;
-    } catch {
-      return null;
-    }
-  });
-
+  const [authUser, setAuthUser] = useState(() => readOAuthCallbackUser() || readStoredUser());
   const [authLoading, setAuthLoading] = useState(false);
 
   useEffect(() => {
-    if (authUser) {
+    if (authUser?.id && authUser?.token) {
       localStorage.setItem('bandhan_auth', JSON.stringify(authUser));
     } else {
       localStorage.removeItem('bandhan_auth');
     }
   }, [authUser]);
 
+  useEffect(() => {
+    const hasOAuthPayload = new URLSearchParams(window.location.search).has('auth')
+      || new URLSearchParams(window.location.hash.replace(/^#/, '')).has('auth');
+    if (hasOAuthPayload) {
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, []);
+
   const login = (userData) => {
-    const user = {
-      id: userData.id || `user_${Date.now()}`,
-      name: userData.name || userData.fullName || '',
-      email: userData.email || '',
-      mobile: userData.mobile || '',
-      gender: userData.gender || 'Bride',
-      photo: userData.photo || null,
-      isVerified: userData.isVerified ?? true,
-      isApproved: userData.isApproved ?? true,
-      profileComplete: userData.profileComplete ?? true,
-      loginMethod: userData.loginMethod || 'email',
-      token: userData.token || `mock_jwt_${Date.now()}`,
-    };
+    const user = normalizeAuthenticatedUser(userData);
     setAuthUser(user);
     return user;
   };
@@ -45,10 +80,10 @@ export function AuthProvider({ children }) {
   };
 
   const updateAuthUser = (updates) => {
-    setAuthUser(prev => prev ? { ...prev, ...updates } : null);
+    setAuthUser(previous => previous ? { ...previous, ...updates, id: String(previous.id) } : null);
   };
 
-  const isLoggedIn = !!authUser;
+  const isLoggedIn = Boolean(authUser?.id && authUser?.token);
   const feedGender = authUser?.gender === 'Groom' ? 'Bride' : 'Groom';
 
   return (
@@ -65,10 +100,4 @@ export function AuthProvider({ children }) {
       {children}
     </AuthContext.Provider>
   );
-}
-
-export function useAuth() {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error('useAuth must be used within AuthProvider');
-  return ctx;
 }

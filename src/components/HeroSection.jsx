@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, ShieldCheck, HeartHandshake, Sparkles, Crown, Globe, Users, Star } from 'lucide-react';
+import { Search, ShieldCheck, HeartHandshake, Sparkles, Crown, Globe } from 'lucide-react';
 
 // Animated counter hook
 function useCounter(target, duration = 1800) {
@@ -70,7 +70,7 @@ export default function HeroSection({ searchFilters, setSearchFilters, onSearchS
                 display: 'flex', gap: '28px', flexWrap: 'wrap', animationDelay: '0.28s'
               }}>
                 {[
-                  { num: profiles.toLocaleString() + '+', label: 'Verified Profiles' },
+                  { num: profiles.toLocaleString() + '+', label: 'Member Profiles' },
                   { num: matches.toLocaleString() + '+', label: 'Successful Matches' },
                   { num: weddings.toLocaleString() + '+', label: 'Happy Weddings' },
                 ].map(({ num, label }) => (
@@ -114,7 +114,7 @@ export default function HeroSection({ searchFilters, setSearchFilters, onSearchS
                   display: 'flex', alignItems: 'center', gap: '6px',
                   boxShadow: '0 4px 14px rgba(0,0,0,0.35)'
                 }}>
-                  <ShieldCheck size={14} style={{ color: '#D4AF37' }} /> 100% Aadhaar Verified
+                  <ShieldCheck size={14} style={{ color: '#D4AF37' }} /> Contact Verification Available
                 </div>
 
                 {/* Floating Badge 2 - Kundali & AI Match */}
@@ -231,8 +231,8 @@ export default function HeroSection({ searchFilters, setSearchFilters, onSearchS
             <div className="search-card-footer">
               <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
                 {[
-                  { icon: ShieldCheck, color: '#0284C7', label: '100% Aadhaar Verified' },
-                  { icon: HeartHandshake, color: '#7A0026', label: 'Photo Privacy Control' },
+                  { icon: ShieldCheck, color: '#0284C7', label: 'Contact Verification Status' },
+                  { icon: HeartHandshake, color: '#7A0026', label: 'Consent-Based Chat' },
                   { icon: Globe, color: '#059669', label: 'NRI Profiles Available' },
                 ].map(({ icon: Icon, color, label }) => (
                   <span key={label} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: 700, color: '#374151' }}>

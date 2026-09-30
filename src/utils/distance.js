@@ -1,16 +1,28 @@
-// Haversine formula distance calculation in kilometers between two lat/lng coordinates
+// Haversine distance helpers used for local map presentation.
+// Server-side discovery remains the authority for search eligibility and radius filtering.
+
+const isValidCoordinate = value => value !== null
+  && value !== undefined
+  && value !== ''
+  && Number.isFinite(Number(value));
 
 export function calculateDistanceKm(lat1, lon1, lat2, lon2) {
-  if (!lat1 || !lon1 || !lat2 || !lon2) return 0;
-  const R = 6371; // Earth's radius in km
-  const dLat = (lat2 - lat1) * (Math.PI / 180);
-  const dLon = (lon2 - lon1) * (Math.PI / 180);
+  if (![lat1, lon1, lat2, lon2].every(isValidCoordinate)) return 0;
+
+  const startLat = Number(lat1);
+  const startLng = Number(lon1);
+  const endLat = Number(lat2);
+  const endLng = Number(lon2);
+  const earthRadiusKm = 6371;
+  const dLat = (endLat - startLat) * (Math.PI / 180);
+  const dLng = (endLng - startLng) * (Math.PI / 180);
   const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
-    Math.sin(dLon / 2) * Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return Math.round(R * c);
+    Math.sin(dLat / 2) ** 2
+    + Math.cos(startLat * (Math.PI / 180))
+      * Math.cos(endLat * (Math.PI / 180))
+      * Math.sin(dLng / 2) ** 2;
+  const angularDistance = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return Math.round(earthRadiusKm * angularDistance);
 }
 
 export const CITY_CENTERS = {
@@ -39,11 +51,17 @@ export const CITY_CENTERS = {
 };
 
 export function getMinDistanceToCenters(profileLat, profileLng, selectedCityKeys = ['Bengaluru']) {
-  if (!profileLat || !profileLng || !selectedCityKeys || selectedCityKeys.length === 0) {
+  if (!isValidCoordinate(profileLat)
+    || !isValidCoordinate(profileLng)
+    || !Array.isArray(selectedCityKeys)
+    || selectedCityKeys.length === 0) {
     return { minDistance: 0, nearestCenterName: 'Center' };
   }
 
-  if (selectedCityKeys.includes('All')) {
+  const includesAllLocations = selectedCityKeys.some(cityItem => (
+    typeof cityItem === 'object' ? cityItem?.id === 'All' || cityItem?.isAll : cityItem === 'All'
+  ));
+  if (includesAllLocations) {
     return { minDistance: 0, nearestCenterName: 'All Regions' };
   }
 
@@ -51,33 +69,33 @@ export function getMinDistanceToCenters(profileLat, profileLng, selectedCityKeys
   let nearestCenterName = '';
 
   selectedCityKeys.forEach(cityItem => {
-    let lat, lng, name;
+    let latitude;
+    let longitude;
+    let name;
+
     if (typeof cityItem === 'object' && cityItem !== null) {
-      lat = cityItem.lat;
-      lng = cityItem.lng;
+      latitude = cityItem.lat;
+      longitude = cityItem.lng;
       name = cityItem.label || cityItem.name;
     } else {
       const center = CITY_CENTERS[cityItem];
-      if (center) {
-        if (center.isAll) return;
-        lat = center.lat;
-        lng = center.lng;
-        name = center.name;
-      }
+      if (!center || center.isAll) return;
+      latitude = center.lat;
+      longitude = center.lng;
+      name = center.name;
     }
 
-    if (lat && lng) {
-      const d = calculateDistanceKm(lat, lng, profileLat, profileLng);
-      if (d < minDistance) {
-        minDistance = d;
+    if (isValidCoordinate(latitude) && isValidCoordinate(longitude)) {
+      const distance = calculateDistanceKm(latitude, longitude, profileLat, profileLng);
+      if (distance < minDistance) {
+        minDistance = distance;
         nearestCenterName = (name || '').replace('📍 ', '').replace('✈️ ', '');
       }
     }
   });
 
   if (minDistance === Infinity) {
-    minDistance = 0;
-    nearestCenterName = 'Location Center';
+    return { minDistance: 0, nearestCenterName: 'Location Center' };
   }
 
   return { minDistance, nearestCenterName };

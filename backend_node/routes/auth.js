@@ -1,222 +1,258 @@
-/**
- * Bandhan Matrimony — Authentication Routes
- * POST /api/auth/register      — Email/Password Signup
- * POST /api/auth/login         — Email/Password Login
- * POST /api/auth/send-otp      — Send Mobile OTP via MSG91
- * POST /api/auth/verify-otp    — Verify Mobile OTP & Login
- * GET  /api/auth/google        — Start Google OAuth
- * GET  /api/auth/google/callback — Google OAuth Callback
- * GET  /api/auth/me            — Get current user (protected)
- * POST /api/auth/logout        — Clear session
- */
+/** Bandhan Matrimony — Authentication routes mounted at /api/v1/auth. */
 
+const crypto = require('crypto');
 const express = require('express');
-const router = express.Router();
 const bcrypt = require('bcryptjs');
 const axios = require('axios');
 const passport = require('passport');
 const { v4: uuidv4 } = require('uuid');
 const { generateToken, requireAuth } = require('../middleware/authMiddleware');
-const { User, Profile } = require('../models');
+const { User, Profile, sequelize } = require('../models');
+const { sendSuccess, sendError } = require('../utils/apiResponse');
+const {
+  DEMO_PROFILE_IDS,
+  loadFrontendMockProfiles,
+  mockUserIdForProfileId,
+} = require('../utils/mockData');
 
-// ─────────────────────────────────────────────
-// POST /api/auth/register — Email Signup
-// ─────────────────────────────────────────────
-router.post('/register', async (req, res) => {
+const router = express.Router();
+const isProduction = process.env.NODE_ENV === 'production';
+
+const normalizeEmail = value => value?.trim().toLowerCase() || null;
+const normalizeMobile = value => value?.replace(/\D/g, '') || null;
+
+const userDto = (user, profile) => ({
+  id: String(user.id),
+  email: user.email,
+  mobile: user.mobile,
+  gender: user.gender,
+  name: profile?.fullName || user.email?.split('@')[0] || 'Bandhan Member',
+  photo: profile?.photoUrl || null,
+  isEmailVerified: Boolean(user.isEmailVerified),
+  isMobileVerified: Boolean(user.isMobileVerified),
+  isApproved: Boolean(user.isApproved),
+  profileComplete: Boolean(user.profileComplete),
+});
+
+router.post('/demo', async (req, res) => {
+  if (isProduction || process.env.ENABLE_DEMO_AUTH === 'false') {
+    return sendError(res, 404, 'ROUTE_NOT_FOUND', 'Route not found.');
+  }
+
   try {
-    const { fullName, email, password, gender, mobile, profileCreatedBy } = req.body;
-
-    if (!gender || !['Bride', 'Groom'].includes(gender)) {
-      return res.status(400).json({ error: 'Gender must be Bride or Groom.' });
+    const gender = req.body?.gender;
+    if (!['Bride', 'Groom'].includes(gender)) {
+      return sendError(res, 400, 'INVALID_DEMO_GENDER', 'Demo gender must be Bride or Groom.');
     }
 
-    if (email) {
-      const existing = await User.findOne({ where: { email } });
-      if (existing) return res.status(409).json({ error: 'Email already registered.' });
+    const fixtureProfileId = DEMO_PROFILE_IDS[gender];
+    const fixtureProfiles = await loadFrontendMockProfiles();
+    const fixture = fixtureProfiles.find(profile => profile.id === fixtureProfileId);
+    if (!fixture) {
+      return sendError(res, 500, 'MOCK_FIXTURE_MISSING', 'The requested development fixture is unavailable.');
     }
 
+    let user;
+    let profile;
+    if (process.env.DEMO_AUTH_USE_DATABASE === 'true') {
+      user = await User.findByPk(mockUserIdForProfileId(fixtureProfileId));
+      if (!user) {
+        return sendError(
+          res,
+          409,
+          'MOCK_DATA_NOT_SEEDED',
+          'Development profiles are not seeded. Run the guarded mock seed command first.',
+        );
+      }
+      if (!user.isActive) return sendError(res, 403, 'ACCOUNT_INACTIVE', 'The demo account is inactive.');
+      profile = await Profile.findOne({ where: { userId: user.id } });
+      await user.update({ lastLoginAt: new Date() });
+    } else {
+      user = {
+        id: mockUserIdForProfileId(fixtureProfileId),
+        email: `mock.profile${fixtureProfileId}@bandhan.test`,
+        mobile: null,
+        gender,
+        isEmailVerified: true,
+        isMobileVerified: true,
+        isApproved: true,
+        profileComplete: true,
+        isActive: true,
+      };
+      profile = { fullName: fixture.name, photoUrl: fixture.photo };
+    }
+
+    return sendSuccess(res, {
+      token: generateToken(user),
+      user: { ...userDto(user, profile), loginMethod: 'demo' },
+    }, { message: `Signed in as the demo ${gender}.` });
+  } catch (error) {
+    console.error('Demo login error:', error);
+    return sendError(res, 500, 'DEMO_LOGIN_FAILED', 'Demo sign in failed.');
+  }
+});
+
+router.post('/register', async (req, res) => {
+  let transaction;
+  try {
+    transaction = await sequelize.transaction();
+    const fullName = req.body?.fullName?.trim();
+    const email = normalizeEmail(req.body?.email);
+    const mobile = normalizeMobile(req.body?.mobile);
+    const password = req.body?.password;
+    const gender = req.body?.gender;
+
+    if (!['Bride', 'Groom'].includes(gender)) {
+      await transaction.rollback();
+      return sendError(res, 400, 'INVALID_GENDER', 'Gender must be Bride or Groom.');
+    }
+    if (!email) {
+      await transaction.rollback();
+      return sendError(res, 400, 'EMAIL_REQUIRED', 'Email is required for password registration.');
+    }
+    if (typeof password !== 'string' || password.length < 8) {
+      await transaction.rollback();
+      return sendError(res, 400, 'WEAK_PASSWORD', 'Password must contain at least 8 characters.');
+    }
+
+    const existingEmail = await User.findOne({ where: { email }, transaction });
+    if (existingEmail) {
+      await transaction.rollback();
+      return sendError(res, 409, 'EMAIL_ALREADY_REGISTERED', 'Email is already registered.');
+    }
     if (mobile) {
-      const existing = await User.findOne({ where: { mobile } });
-      if (existing) return res.status(409).json({ error: 'Mobile number already registered.' });
+      const existingMobile = await User.findOne({ where: { mobile }, transaction });
+      if (existingMobile) {
+        await transaction.rollback();
+        return sendError(res, 409, 'MOBILE_ALREADY_REGISTERED', 'Mobile number is already registered.');
+      }
     }
-
-    const hashedPassword = password ? await bcrypt.hash(password, 12) : null;
 
     const user = await User.create({
       id: uuidv4(),
-      email: email || null,
-      mobile: mobile || null,
-      password: hashedPassword,
+      email,
+      mobile,
+      password: await bcrypt.hash(password, 12),
       gender,
-      loginMethod: email ? 'email' : 'mobile',
+      loginMethod: 'email',
       isEmailVerified: false,
       isMobileVerified: false,
       isApproved: false,
       profileComplete: false,
-    });
+    }, { transaction });
 
-    // Create minimal profile record
-    await Profile.create({
+    const profile = await Profile.create({
       id: uuidv4(),
       userId: user.id,
-      fullName: fullName || email?.split('@')[0] || 'New User',
+      fullName: fullName || email.split('@')[0],
+    }, { transaction });
+
+    await transaction.commit();
+    return sendSuccess(res, { token: generateToken(user), user: userDto(user, profile) }, {
+      status: 201,
+      message: 'Account created. Verify your contact details to continue.',
     });
-
-    const token = generateToken(user);
-
-    return res.status(201).json({
-      message: 'Account created! Please verify your email/mobile.',
-      token,
-      user: {
-        id: user.id,
-        email: user.email,
-        mobile: user.mobile,
-        gender: user.gender,
-        name: fullName,
-        isEmailVerified: user.isEmailVerified,
-        isMobileVerified: user.isMobileVerified,
-        isApproved: user.isApproved,
-        profileComplete: user.profileComplete,
-      }
-    });
-
-  } catch (err) {
-    console.error('Register error:', err);
-    return res.status(500).json({ error: 'Registration failed. Please try again.' });
+  } catch (error) {
+    if (transaction && !transaction.finished) await transaction.rollback();
+    console.error('Register error:', error);
+    return sendError(res, 500, 'REGISTRATION_FAILED', 'Registration failed. Please try again.');
   }
 });
 
-// ─────────────────────────────────────────────
-// POST /api/auth/login — Email Login
-// ─────────────────────────────────────────────
 router.post('/login', async (req, res) => {
   try {
-    const { email, password } = req.body;
-    if (!email || !password) {
-      return res.status(400).json({ error: 'Email and password are required.' });
-    }
+    const email = normalizeEmail(req.body?.email);
+    const password = req.body?.password;
+    if (!email || !password) return sendError(res, 400, 'CREDENTIALS_REQUIRED', 'Email and password are required.');
 
     const user = await User.findOne({ where: { email } });
-    if (!user) return res.status(401).json({ error: 'No account found with this email.' });
-    if (!user.isActive) return res.status(403).json({ error: 'Account deactivated. Contact support.' });
-    if (!user.password) return res.status(401).json({ error: 'Please login with Google.' });
+    if (!user) return sendError(res, 401, 'INVALID_CREDENTIALS', 'Email or password is incorrect.');
+    if (!user.isActive) return sendError(res, 403, 'ACCOUNT_INACTIVE', 'This account is deactivated.');
+    if (!user.password) return sendError(res, 401, 'USE_SOCIAL_LOGIN', 'Use the sign-in method associated with this account.');
+    if (!await bcrypt.compare(password, user.password)) {
+      return sendError(res, 401, 'INVALID_CREDENTIALS', 'Email or password is incorrect.');
+    }
 
-    const isValid = await bcrypt.compare(password, user.password);
-    if (!isValid) return res.status(401).json({ error: 'Incorrect password.' });
-
-    // Update last login
     await user.update({ lastLoginAt: new Date() });
-
     const profile = await Profile.findOne({ where: { userId: user.id } });
-    const token = generateToken(user);
-
-    return res.json({
-      message: 'Login successful!',
-      token,
-      user: {
-        id: user.id,
-        email: user.email,
-        gender: user.gender,
-        name: profile?.fullName || email.split('@')[0],
-        photo: profile?.photoUrl || null,
-        isEmailVerified: user.isEmailVerified,
-        isApproved: user.isApproved,
-        profileComplete: user.profileComplete,
-      }
-    });
-
-  } catch (err) {
-    console.error('Login error:', err);
-    return res.status(500).json({ error: 'Login failed. Please try again.' });
+    return sendSuccess(res, { token: generateToken(user), user: userDto(user, profile) }, { message: 'Signed in successfully.' });
+  } catch (error) {
+    console.error('Login error:', error);
+    return sendError(res, 500, 'LOGIN_FAILED', 'Sign in failed. Please try again.');
   }
 });
 
-// ─────────────────────────────────────────────
-// POST /api/auth/send-otp — Send Mobile OTP
-// ─────────────────────────────────────────────
-router.post('/send-otp', async (req, res) => {
+const requestOtp = async (req, res) => {
   try {
-    const { mobile, gender, fullName } = req.body;
+    const mobile = normalizeMobile(req.body?.mobile);
+    const gender = req.body?.gender;
+    const fullName = req.body?.fullName?.trim();
 
-    if (!mobile || mobile.length < 10) {
-      return res.status(400).json({ error: 'Valid 10-digit mobile number required.' });
+    if (!mobile || !/^\d{10,15}$/.test(mobile)) {
+      return sendError(res, 400, 'INVALID_MOBILE', 'Enter a valid mobile number.');
     }
 
-    // Generate 6-digit OTP
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+    const msg91Key = process.env.MSG91_API_KEY;
+    const templateId = process.env.MSG91_TEMPLATE_ID;
+    if (isProduction && (!msg91Key || !templateId)) {
+      return sendError(res, 503, 'OTP_PROVIDER_UNAVAILABLE', 'Mobile verification is temporarily unavailable.');
+    }
 
-    // Find or create user
     let user = await User.findOne({ where: { mobile } });
+    if (!user && !['Bride', 'Groom'].includes(gender)) {
+      return sendError(res, 400, 'GENDER_REQUIRED', 'Choose Bride or Groom for a new registration.');
+    }
+    if (user && !user.isActive) return sendError(res, 403, 'ACCOUNT_INACTIVE', 'This account is deactivated.');
+
+    const otp = crypto.randomInt(100000, 1000000).toString();
+    const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
+
     if (!user) {
-      if (!gender) return res.status(400).json({ error: 'Gender required for new registration.' });
       user = await User.create({
-        id: uuidv4(),
-        mobile,
-        gender,
-        loginMethod: 'mobile',
-        otpCode: otp,
-        otpExpiresAt,
+        id: uuidv4(), mobile, gender, loginMethod: 'mobile', otpCode: otp, otpExpiresAt,
+        isEmailVerified: false, isMobileVerified: false, isApproved: false, profileComplete: false,
       });
-      await Profile.create({ id: uuidv4(), userId: user.id, fullName: fullName || 'New User' });
+      await Profile.create({ id: uuidv4(), userId: user.id, fullName: fullName || 'New Member' });
     } else {
       await user.update({ otpCode: otp, otpExpiresAt });
     }
 
-    // Send OTP via MSG91 API
-    const msg91Key = process.env.MSG91_API_KEY;
-    const templateId = process.env.MSG91_TEMPLATE_ID;
-    
     if (msg91Key && templateId) {
       try {
         await axios.post('https://control.msg91.com/api/v5/otp', {
           template_id: templateId,
-          mobile: `91${mobile}`,
+          mobile: mobile.length === 10 ? `91${mobile}` : mobile,
           otp,
         }, {
-          headers: { authkey: msg91Key, 'content-type': 'application/json' }
+          headers: { authkey: msg91Key, 'content-type': 'application/json' },
+          timeout: 10000,
         });
-      } catch (smsErr) {
-        console.warn('MSG91 failed:', smsErr.message);
-        // Continue — OTP stored in DB for dev
+      } catch (providerError) {
+        console.error('OTP provider error:', providerError.message);
+        if (isProduction) return sendError(res, 502, 'OTP_DELIVERY_FAILED', 'The verification code could not be delivered. Try again.');
       }
     }
 
-    // In development, return OTP in response for testing
-    const response = { message: `OTP sent to +91 ${mobile}` };
-    if (process.env.NODE_ENV === 'development') {
-      response.otp_dev = otp; // Only in dev mode!
-    }
-
-    return res.json(response);
-
-  } catch (err) {
-    console.error('Send OTP error:', err);
-    return res.status(500).json({ error: 'Failed to send OTP. Please try again.' });
+    const data = { destination: `***${mobile.slice(-4)}`, expiresInSeconds: 600 };
+    if (!isProduction) data.otp_dev = otp;
+    return sendSuccess(res, data, { message: 'Verification code sent.' });
+  } catch (error) {
+    console.error('Request OTP error:', error);
+    return sendError(res, 500, 'OTP_REQUEST_FAILED', 'Failed to request a verification code.');
   }
-});
+};
 
-// ─────────────────────────────────────────────
-// POST /api/auth/verify-otp — Verify Mobile OTP
-// ─────────────────────────────────────────────
-router.post('/verify-otp', async (req, res) => {
+const verifyOtp = async (req, res) => {
   try {
-    const { mobile, otp } = req.body;
-
-    if (!mobile || !otp) {
-      return res.status(400).json({ error: 'Mobile and OTP are required.' });
-    }
+    const mobile = normalizeMobile(req.body?.mobile);
+    const otp = req.body?.otp?.trim();
+    if (!mobile || !otp) return sendError(res, 400, 'OTP_REQUIRED', 'Mobile number and verification code are required.');
 
     const user = await User.findOne({ where: { mobile } });
-    if (!user) return res.status(404).json({ error: 'No account found. Please register first.' });
-
-    if (user.otpCode !== otp) {
-      return res.status(401).json({ error: 'Incorrect OTP. Please try again.' });
-    }
-
-    if (user.otpExpiresAt < new Date()) {
-      return res.status(401).json({ error: 'OTP expired. Please request a new OTP.' });
-    }
+    if (!user) return sendError(res, 404, 'ACCOUNT_NOT_FOUND', 'No account was found for this mobile number.');
+    if (!user.isActive) return sendError(res, 403, 'ACCOUNT_INACTIVE', 'This account is deactivated.');
+    if (!user.otpCode || user.otpCode !== otp) return sendError(res, 401, 'INVALID_OTP', 'The verification code is incorrect.');
+    if (!user.otpExpiresAt || user.otpExpiresAt < new Date()) return sendError(res, 401, 'OTP_EXPIRED', 'The verification code has expired.');
 
     await user.update({
       isMobileVerified: true,
@@ -224,104 +260,69 @@ router.post('/verify-otp', async (req, res) => {
       otpExpiresAt: null,
       lastLoginAt: new Date(),
     });
-
     const profile = await Profile.findOne({ where: { userId: user.id } });
     const token = generateToken({ ...user.toJSON(), isMobileVerified: true });
-
-    return res.json({
-      message: 'OTP verified! Account activated.',
-      token,
-      user: {
-        id: user.id,
-        mobile: user.mobile,
-        gender: user.gender,
-        name: profile?.fullName || 'User',
-        photo: profile?.photoUrl || null,
-        isEmailVerified: user.isEmailVerified,
-        isMobileVerified: true,
-        isApproved: user.isApproved,
-        profileComplete: user.profileComplete,
-      }
-    });
-
-  } catch (err) {
-    console.error('Verify OTP error:', err);
-    return res.status(500).json({ error: 'OTP verification failed.' });
+    return sendSuccess(res, { token, user: userDto({ ...user.toJSON(), isMobileVerified: true }, profile) }, { message: 'Mobile number verified.' });
+  } catch (error) {
+    console.error('Verify OTP error:', error);
+    return sendError(res, 500, 'OTP_VERIFICATION_FAILED', 'Verification failed. Please try again.');
   }
-});
+};
 
-// ─────────────────────────────────────────────
-// GET /api/auth/google — Start Google OAuth
-// ─────────────────────────────────────────────
+router.post(['/send-otp', '/otp/request'], requestOtp);
+router.post(['/verify-otp', '/otp/verify'], verifyOtp);
+
 router.get('/google', (req, res, next) => {
-  // Store gender intent from query param for signup
-  if (req.query.gender) {
-    req.session = req.session || {};
-    req.session.pendingGender = req.query.gender;
+  const gender = ['Bride', 'Groom'].includes(req.query.gender) ? req.query.gender : null;
+  if (!gender) return sendError(res, 400, 'GENDER_REQUIRED', 'Choose Bride or Groom before Google sign in.');
+  if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+    return sendError(res, 503, 'GOOGLE_AUTH_UNAVAILABLE', 'Google sign in is not configured.');
   }
-  passport.authenticate('google', {
-    scope: ['profile', 'email'],
-    state: req.query.gender || 'Bride',
-  })(req, res, next);
+
+  req.session.pendingGender = gender;
+  return passport.authenticate('google', { scope: ['profile', 'email'], state: true })(req, res, next);
 });
 
-// ─────────────────────────────────────────────
-// GET /api/auth/google/callback — Google OAuth Callback
-// ─────────────────────────────────────────────
 router.get('/google/callback',
-  passport.authenticate('google', { failureRedirect: `${process.env.FRONTEND_URL}/login?error=google_failed`, session: false }),
+  passport.authenticate('google', {
+    failureRedirect: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/?error=google_failed`,
+    session: false,
+  }),
   async (req, res) => {
     try {
       const user = req.user;
-      const token = generateToken(user);
       const profile = await Profile.findOne({ where: { userId: user.id } });
-
-      // Redirect to frontend with token
-      const userInfo = encodeURIComponent(JSON.stringify({
-        id: user.id,
-        name: profile?.fullName || user.email?.split('@')[0] || 'User',
-        email: user.email,
-        gender: user.gender,
-        photo: profile?.photoUrl || null,
-        isApproved: user.isApproved,
-        profileComplete: user.profileComplete,
-        token,
+      const callbackData = encodeURIComponent(JSON.stringify({
+        ...userDto(user, profile),
+        token: generateToken(user),
+        loginMethod: 'google',
       }));
-
-      res.redirect(`${process.env.FRONTEND_URL}?auth=${userInfo}`);
-    } catch (err) {
-      console.error('Google callback error:', err);
-      res.redirect(`${process.env.FRONTEND_URL}/login?error=server_error`);
+      // Use a URL fragment so the credential is not sent in subsequent HTTP requests or server logs.
+      return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:5173'}/#auth=${callbackData}`);
+    } catch (error) {
+      console.error('Google callback error:', error);
+      return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:5173'}/?error=google_server_error`);
     }
-  }
-);
+  });
 
-// ─────────────────────────────────────────────
-// GET /api/auth/me — Get Current User (Protected)
-// ─────────────────────────────────────────────
 router.get('/me', requireAuth, async (req, res) => {
   try {
-    const user = await User.findByPk(req.user.userId, {
-      include: [{ model: Profile, as: 'profile' }]
-    });
-
-    if (!user) return res.status(404).json({ error: 'User not found.' });
-
-    return res.json({
-      id: user.id,
-      email: user.email,
-      mobile: user.mobile,
-      gender: user.gender,
-      name: user.profile?.fullName || 'User',
-      photo: user.profile?.photoUrl || null,
-      isEmailVerified: user.isEmailVerified,
-      isMobileVerified: user.isMobileVerified,
-      isApproved: user.isApproved,
-      profileComplete: user.profileComplete,
-    });
-  } catch (err) {
-    return res.status(500).json({ error: 'Failed to get user.' });
+    const user = await User.findByPk(req.user.userId);
+    if (!user || !user.isActive) return sendError(res, 404, 'ACCOUNT_NOT_FOUND', 'Account not found.');
+    const profile = await Profile.findOne({ where: { userId: user.id } });
+    return sendSuccess(res, userDto(user, profile));
+  } catch (error) {
+    console.error('Get current user error:', error);
+    return sendError(res, 500, 'ACCOUNT_READ_FAILED', 'Failed to load your account.');
   }
+});
+
+router.post('/logout', (req, res) => {
+  if (!req.session) return sendSuccess(res, null, { message: 'Signed out.' });
+  return req.session.destroy(error => {
+    if (error) return sendError(res, 500, 'LOGOUT_FAILED', 'Sign out failed.');
+    return sendSuccess(res, null, { message: 'Signed out.' });
+  });
 });
 
 module.exports = router;

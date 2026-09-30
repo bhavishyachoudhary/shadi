@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Calendar, Clock, Users, Video, ShieldCheck, CheckCircle2 } from 'lucide-react';
+import { X, Calendar, Clock, Users, Video, CheckCircle2 } from 'lucide-react';
 
 export default function ParivarMeetModal({ profile, onClose, onScheduleConfirm }) {
   const [meetingDate, setMeetingDate] = useState('2026-10-04'); // Next Sunday
@@ -59,7 +59,7 @@ export default function ParivarMeetModal({ profile, onClose, onScheduleConfirm }
               An invitation has been sent to <strong>{profile.name}'s family</strong> for <strong>{meetingDate} at {timeSlot}</strong>.
             </p>
             <div style={{ marginTop: '16px', padding: '12px', backgroundColor: '#ECFDF5', border: '1px solid #A7F3D0', borderRadius: '12px', fontSize: '11px', color: '#065F46', fontWeight: 700 }}>
-              🔒 Encrypted room link generated. Direct phone numbers remain 100% hidden until both families accept.
+              🔒 Meeting requests are shared only with the selected accepted connection. Direct phone numbers remain private.
             </div>
           </div>
         ) : (

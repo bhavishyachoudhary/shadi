@@ -1,8 +1,4 @@
-/**
- * Bandhan Matrimony — MySQL Database Configuration
- * Using Sequelize ORM with mysql2 driver
- * Optimized for GoDaddy Shared Hosting cPanel MySQL
- */
+/** Bandhan Matrimony — MySQL/Sequelize configuration. */
 
 const { Sequelize } = require('sequelize');
 require('dotenv').config();
@@ -13,36 +9,26 @@ const sequelize = new Sequelize(
   process.env.DB_PASS || '',
   {
     host: process.env.DB_HOST || 'localhost',
-    port: parseInt(process.env.DB_PORT || '3306'),
+    port: Number.parseInt(process.env.DB_PORT || '3306', 10),
     dialect: 'mysql',
-    logging: process.env.NODE_ENV === 'development' ? console.log : false,
+    logging: process.env.DB_LOG_SQL === 'true' ? console.log : false,
     pool: {
-      max: 5,
+      max: Number.parseInt(process.env.DB_POOL_MAX || '5', 10),
       min: 0,
       acquire: 30000,
-      idle: 10000
+      idle: 10000,
     },
     dialectOptions: {
       connectTimeout: 60000,
     },
     define: {
-      underscored: true,       // Use snake_case column names
-      timestamps: true,        // createdAt, updatedAt auto-managed
+      underscored: true,
+      timestamps: true,
       paranoid: false,
-    }
-  }
+    },
+  },
 );
 
-// Test connection
-const testConnection = async () => {
-  try {
-    await sequelize.authenticate();
-    console.log('✅ MySQL Database connection established successfully.');
-  } catch (error) {
-    console.error('❌ Unable to connect to MySQL database:', error.message);
-  }
-};
-
-testConnection();
-
+// Connection lifecycle and readiness are owned by server.js. Keeping this module
+// side-effect free avoids duplicate connection attempts during imports and tests.
 module.exports = sequelize;

@@ -1,5 +1,6 @@
-import React, { useState, useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import Navbar from './components/Navbar';
+import AuthPage from './components/AuthPage';
 import MapView from './components/MapView';
 import ProfileDetailModal from './components/ProfileDetailModal';
 import LifestyleReelsModal from './components/LifestyleReelsModal';
@@ -12,13 +13,19 @@ import RegistrationWizard from './components/RegistrationWizard';
 import DeleteAccountModal from './components/DeleteAccountModal';
 import MembershipPlans from './components/MembershipPlans';
 import FloatingChatWidget from './components/FloatingChatWidget';
+import MediaGalleryModal from './components/MediaGalleryModal';
 import Footer from './components/Footer';
 import MandatoryOnboardingModal from './components/MandatoryOnboardingModal';
-import { useAuth } from './context/AuthContext';
+import useAuth from './context/useAuth';
 
 import { mockProfiles } from './data/mockProfiles';
-import { getMinDistanceToCenters } from './utils/distance';
 import { CheckCircle2, MessageCircle } from 'lucide-react';
+
+// Mock records are available only while running the local Vite development server.
+// Production builds start with no synthetic identities, interests, visitors, or chat data.
+const IS_DEMO_DATA_ENABLED = import.meta.env.DEV && import.meta.env.VITE_ENABLE_DEMO_DATA !== 'false';
+const SHOW_ALL_DEMO_PROFILES = IS_DEMO_DATA_ENABLED && import.meta.env.VITE_DEMO_SHOW_ALL_GENDERS !== 'false';
+const profileIdEquals = (left, right) => String(left) === String(right);
 
 export default function App() {
   const { authUser, isLoggedIn, feedGender, login, logout, updateAuthUser } = useAuth();
@@ -27,17 +34,18 @@ export default function App() {
   // Map-only mode — no card view
   const [isAuthOpen, setIsAuthOpen] = useState(false);
 
-  // Derive currentUser from authUser (falls back to demo account)
+  // Derive the current user only from a server-authenticated identity.
   const currentUser = authUser ? {
-    id: authUser.id || authUser.userUniqueId,
-    name: authUser.name || authUser.fullName || 'Guest User',
+    id: authUser.id,
+    name: authUser.name || authUser.fullName || 'Bandhan Member',
     gender: authUser.gender || 'Groom',
     photo: authUser.photo || null,
     profileCreatedBy: 'Self',
     isLocked: authUser.isLocked ?? false,
     lockedFields: authUser.lockedFields || ['name', 'gender']
   } : {
-    name: 'Rohan Verma',
+    id: null,
+    name: 'Guest',
     gender: 'Groom',
     profileCreatedBy: 'Self'
   };
@@ -58,19 +66,12 @@ export default function App() {
     verifiedOnly: false
   });
 
-  // Keep filters.gender in sync whenever authUser's gender changes
-  const correctFeedGender = (authUser?.gender === 'Groom') ? 'Bride' : 'Groom';
-
   const handleAuthSuccess = (userData) => {
-    // Generate unique account ID & set profileComplete: false to trigger mandatory onboarding
-    const uniqueUserId = `USER_${Math.floor(100000 + Math.random() * 900000)}`;
-    const loggedInUser = login({
-      ...userData,
-      id: uniqueUserId,
-      profileComplete: false, // Triggers mandatory onboarding gate before landing page!
-    });
+    const loggedInUser = login(userData);
+    const targetFeedGender = loggedInUser.gender === 'Groom' ? 'Bride' : 'Groom';
+    setFilters(previous => ({ ...previous, gender: targetFeedGender }));
     setIsAuthOpen(false);
-    showToast(`🔒 Account ${uniqueUserId} Created! Please complete mandatory profile setup.`);
+    showToast(`Welcome ${loggedInUser.name || 'to Bandhan'}!`);
   };
 
   const handleCompleteOnboarding = (onboardingData) => {
@@ -93,27 +94,28 @@ export default function App() {
     showToast('👋 Logged out successfully.');
   };
 
-  const [profiles, setProfiles] = useState(mockProfiles);
+  const [profiles, setProfiles] = useState(() => IS_DEMO_DATA_ENABLED ? mockProfiles : []);
   const [selectedProfile, setSelectedProfile] = useState(null);
   const [selectedReelsProfile, setSelectedReelsProfile] = useState(null);
+  const [galleryProfile, setGalleryProfile] = useState(null); // media gallery lightbox
   const [selectedParivarProfile, setSelectedParivarProfile] = useState(null);
   const [activeFloatingChat, setActiveFloatingChat] = useState(null); // profile object or null
   
-  // User interactions with multi-state interest: 'sent' | 'accepted' | 'declined' | undefined
-  const [interestMap, setInterestMap] = useState({
-    101: 'accepted', // Ananya: Accepted (Green)
-    103: 'declined', // Dr. Priya: Declined (Red)
-    102: 'sent'      // Rohan: Sent (Teal)
-  });
-  const sentInterests = Object.keys(interestMap).filter(id => interestMap[id]).map(Number);
+  // Temporary development-only interaction state. Server APIs replace this in Phase C.
+  const [interestMap, setInterestMap] = useState(() => IS_DEMO_DATA_ENABLED ? {
+    '101': 'accepted',
+    '103': 'declined',
+    '102': 'sent'
+  } : {});
+  const sentInterests = Object.keys(interestMap).filter(id => ['sent', 'accepted'].includes(interestMap[id]));
   const [shortlistedIds, setShortlistedIds] = useState([]);
-  const [receivedInterests, setReceivedInterests] = useState([
+  const [receivedInterests, setReceivedInterests] = useState(() => IS_DEMO_DATA_ENABLED ? [
     {
-      id: 501,
-      senderId: 102,
+      id: '501',
+      senderId: '105',
       message: 'Namaste! I went through your profile and found our educational backgrounds very compatible.'
     }
-  ]);
+  ] : []);
 
   // Live Recent Visitors State (Unique per profileId)
   const todayDateStr = new Date().toISOString().split('T')[0];
@@ -213,31 +215,41 @@ export default function App() {
     setTimeout(() => setToastMessage(null), 3000);
   };
 
-  // Express Interest Handler cycling through states: none -> sent -> accepted -> declined -> none
-  const handleExpressInterest = (profileId, explicitStatus) => {
-    setInterestMap(prev => {
-      const current = prev[profileId];
-      let nextState = explicitStatus;
-      
-      if (!nextState) {
-        if (!current) nextState = 'sent';
-        else if (current === 'sent') nextState = 'accepted';
-        else if (current === 'accepted') nextState = 'declined';
-        else nextState = undefined;
+  // A sender may create an interest, but only the receiver may accept or decline it.
+  const handleExpressInterest = (profileId) => {
+    const key = String(profileId);
+    setInterestMap(previous => {
+      const current = previous[key];
+      if (current === 'accepted') {
+        showToast('✅ This connection is already accepted. Open Messages to chat.');
+        return previous;
+      }
+      if (current === 'sent') {
+        showToast('💌 Your interest is awaiting a response.');
+        return previous;
       }
 
-      const updated = { ...prev };
-      if (!nextState) {
-        delete updated[profileId];
-        showToast("🔄 Status reset to Express Interest");
-      } else {
-        updated[profileId] = nextState;
-        if (nextState === 'sent') showToast("❤️ Express Interest sent successfully!");
-        if (nextState === 'accepted') showToast("✅ Interest ACCEPTED! (Vibrant Green Status)");
-        if (nextState === 'declined') showToast("❌ Interest DECLINED (Red Status)");
-      }
-      return updated;
+      showToast('❤️ Express interest sent successfully!');
+      return { ...previous, [key]: 'sent' };
     });
+  };
+
+  const handleAcceptInterest = (interestId) => {
+    const request = receivedInterests.find(item => profileIdEquals(item.id, interestId));
+    if (!request) return;
+
+    setInterestMap(previous => ({ ...previous, [String(request.senderId)]: 'accepted' }));
+    setReceivedInterests(previous => previous.filter(item => !profileIdEquals(item.id, interestId)));
+    showToast('✅ Interest accepted. Chat is now available for this connection.');
+  };
+
+  const handleDeclineInterest = (interestId) => {
+    const request = receivedInterests.find(item => profileIdEquals(item.id, interestId));
+    if (!request) return;
+
+    setInterestMap(previous => ({ ...previous, [String(request.senderId)]: 'declined' }));
+    setReceivedInterests(previous => previous.filter(item => !profileIdEquals(item.id, interestId)));
+    showToast('Interest declined.');
   };
 
   // Shortlist Toggle Handler
@@ -248,58 +260,41 @@ export default function App() {
     showToast(shortlistedIds.includes(profileId) ? "Removed from Shortlist" : "⭐ Profile Bookmarked in Shortlist");
   };
 
-  // Reset Filters (respects auth-based feed gender)
-  const handleResetFilters = () => {
-    const resetGender = authUser ? correctFeedGender : 'Bride';
-    setFilters({
-      gender: resetGender,
-      religion: 'All',
-      motherTongue: 'All',
-      city: 'All',
-      maxAge: 35,
-      minIncome: 'All',
-      manglik: 'All',
-      diet: 'All',
-      verifiedOnly: false
-    });
-  };
-
-
-  // Filtered Profiles Logic (With Multi-Location Proximity & Radius Plan Division)
+  // Demographic filtering remains here temporarily; MapView is the single owner of
+  // location centers and radius until server-side discovery search replaces this state.
   const filteredProfiles = useMemo(() => {
-    return profiles.map(p => {
-      const { minDistance, nearestCenterName } = getMinDistanceToCenters(p.lat, p.lng, filters.selectedCityKeys || ['Bengaluru', 'Mumbai']);
-      const isInRadius = (filters.selectedCityKeys || []).includes('All') || (filters.radiusKm || 100) >= 3000 || minDistance <= (filters.radiusKm || 100);
-      return { ...p, minDistance, nearestCenterName, isInRadius };
-    }).filter(p => {
-      if (filters.gender !== 'All' && p.gender !== filters.gender) return false;
-      if (p.age > filters.maxAge) return false;
-      if (filters.religion !== 'All' && p.religion !== filters.religion) return false;
-      if (filters.motherTongue !== 'All' && p.motherTongue !== filters.motherTongue) return false;
-      if (filters.caste && filters.caste !== 'All' && p.caste && !p.caste.toLowerCase().includes(filters.caste.toLowerCase().split(' ')[0])) return false;
-      if (filters.gotra && filters.gotra !== 'All' && p.gotra && p.gotra !== filters.gotra) return false;
-
-      // Filter by radius if showOutOfRadius toggle is disabled
-      if (filters.showOutOfRadius === false && !p.isInRadius) return false;
-
-      if (filters.minIncome !== 'All') {
-        const minInc = parseInt(filters.minIncome);
-        if (p.incomeValue < minInc) return false;
-      }
-      if (filters.manglik !== 'All' && p.manglik !== filters.manglik) return false;
-      if (filters.diet !== 'All' && p.diet !== filters.diet) return false;
-      if (filters.verifiedOnly && !p.isVerified) return false;
-
+    return profiles.filter(profile => {
+      if (!SHOW_ALL_DEMO_PROFILES && filters.gender !== 'All' && profile.gender !== filters.gender) return false;
+      if (profile.age > filters.maxAge) return false;
+      if (filters.religion !== 'All' && profile.religion !== filters.religion) return false;
+      if (filters.motherTongue !== 'All' && profile.motherTongue !== filters.motherTongue) return false;
+      if (filters.caste && filters.caste !== 'All' && profile.caste && !profile.caste.toLowerCase().includes(filters.caste.toLowerCase().split(' ')[0])) return false;
+      if (filters.gotra && filters.gotra !== 'All' && profile.gotra && profile.gotra !== filters.gotra) return false;
+      if (filters.minIncome !== 'All' && profile.incomeValue < parseInt(filters.minIncome, 10)) return false;
+      if (filters.manglik !== 'All' && profile.manglik !== filters.manglik) return false;
+      if (filters.diet !== 'All' && profile.diet !== filters.diet) return false;
+      if (filters.verifiedOnly && !profile.isVerified) return false;
       return true;
     });
   }, [profiles, filters]);
+
+  const acceptedChatProfiles = useMemo(() => profiles.filter(
+    profile => interestMap[String(profile.id)] === 'accepted'
+  ), [profiles, interestMap]);
 
   // Handle Register Success
   const handleRegisterSuccess = (newProfData) => {
     const userGender = newProfData.gender || 'Groom';
     const targetFeedGender = userGender === 'Groom' ? 'Bride' : 'Groom';
 
-    setCurrentUser({
+    if (!isLoggedIn) {
+      setIsRegisterOpen(false);
+      setIsAuthOpen(true);
+      showToast('Sign in with a verified account before creating a profile.');
+      return;
+    }
+
+    updateAuthUser({
       name: newProfData.fullName || `${userGender} Account`,
       gender: userGender,
       profileCreatedBy: newProfData.profileCreatedBy || 'Self'
@@ -403,7 +398,9 @@ export default function App() {
               onSelectProfile={handleSelectProfile}
               onOpenLifestyleReels={(p) => setSelectedReelsProfile(p)}
               onOpenParivarMeet={(p) => setSelectedParivarProfile(p)}
+              onOpenGallery={(p) => setGalleryProfile(p)}
               currentUser={currentUser}
+              showAllProfiles={SHOW_ALL_DEMO_PROFILES}
             />
           </div>
         )}
@@ -437,14 +434,8 @@ export default function App() {
               sentInterests={sentInterests}
               interestMap={interestMap}
               profiles={profiles}
-              onAcceptInterest={(id) => {
-                setReceivedInterests(prev => prev.filter(i => i.id !== id));
-                showToast("Accepted Interest! Live Chat Unlocked.");
-              }}
-              onDeclineInterest={(id) => {
-                setReceivedInterests(prev => prev.filter(i => i.id !== id));
-                showToast("Declined interest request.");
-              }}
+              onAcceptInterest={handleAcceptInterest}
+              onDeclineInterest={handleDeclineInterest}
               onExpressInterest={handleExpressInterest}
               onOpenParivarMeet={(p) => setSelectedParivarProfile(p)}
               onSelectProfile={handleSelectProfile}
@@ -483,10 +474,19 @@ export default function App() {
           profile={selectedProfile}
           onClose={() => setSelectedProfile(null)}
           onExpressInterest={handleExpressInterest}
-          isInterested={sentInterests.includes(selectedProfile.id)}
+          isInterested={sentInterests.includes(String(selectedProfile.id))}
           interestStatus={interestMap[selectedProfile.id]}
           onOpenLifestyleReels={(p) => setSelectedReelsProfile(p)}
           onOpenParivarMeet={(p) => setSelectedParivarProfile(p)}
+        />
+      )}
+
+      {/* Media Gallery Lightbox (photos + reel) */}
+      {galleryProfile && (
+        <MediaGalleryModal
+          profile={galleryProfile}
+          photoAllowed={galleryProfile.photoPrivacy === 'Public' || interestMap[String(galleryProfile.id)] === 'accepted'}
+          onClose={() => setGalleryProfile(null)}
         />
       )}
 
@@ -496,7 +496,7 @@ export default function App() {
           profile={selectedReelsProfile}
           onClose={() => setSelectedReelsProfile(null)}
           onExpressInterest={handleExpressInterest}
-          isInterested={sentInterests.includes(selectedReelsProfile.id)}
+          isInterested={sentInterests.includes(String(selectedReelsProfile.id))}
           interestStatus={interestMap[selectedReelsProfile.id]}
           onOpenParivarMeet={(p) => setSelectedParivarProfile(p)}
         />
@@ -555,10 +555,10 @@ export default function App() {
         />
       )}
 
-      {/* Persistent Floating Chat Trigger Launcher Button (Always Pinned to Bottom-Right) */}
-      {!activeFloatingChat && (
+      {/* Chat is exposed only when at least one connection is accepted. */}
+      {!activeFloatingChat && acceptedChatProfiles.length > 0 && (
         <button
-          onClick={() => setActiveFloatingChat(profiles[0])}
+          onClick={() => setActiveFloatingChat(acceptedChatProfiles[0])}
           style={{
             position: 'fixed',
             bottom: '24px',
@@ -580,13 +580,10 @@ export default function App() {
           }}
           className="hover:scale-105"
         >
-          <div style={{ position: 'relative' }}>
-            <MessageCircle className="w-5 h-5 text-[#D4AF37]" />
-            <span style={{ position: 'absolute', top: '-4px', right: '-4px', backgroundColor: '#10B981', width: '9px', height: '9px', borderRadius: '50%', border: '1.5px solid #7A0026' }} />
-          </div>
-          <span>Bandhan Live Chat</span>
+          <MessageCircle className="w-5 h-5 text-[#D4AF37]" />
+          <span>Accepted Messages</span>
           <span style={{ backgroundColor: '#D4AF37', color: '#000000', padding: '2px 8px', borderRadius: '50px', fontSize: '10px', fontWeight: 900 }}>
-            Online ●
+            {acceptedChatProfiles.length}
           </span>
         </button>
       )}
@@ -594,6 +591,7 @@ export default function App() {
       {/* Floating Chat Widget Drawer (Bottom-Right Docked) */}
       {activeFloatingChat && (
         <FloatingChatWidget
+          key={String(activeFloatingChat.id)}
           activeProfile={activeFloatingChat}
           profiles={profiles}
           interestMap={interestMap}

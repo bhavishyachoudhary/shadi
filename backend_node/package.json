@@ -5,7 +5,9 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "nodemon server.js"
+    "dev": "nodemon server.js",
+    "seed:mock": "node seeders/seedMockData.js",
+    "seed:mock:dry": "node seeders/seedMockData.js --dry-run"
   },
   "dependencies": {
     "cors": "^2.8.5",

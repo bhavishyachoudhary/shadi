@@ -15,9 +15,9 @@ CORS(app)
 
 # Secret Key & DB Config
 SECRET_KEY = os.environ.get('SECRET_KEY', 'shaadi_bandhan_godaddy_secret_key_2026')
-DB_HOST = os.environ.get('DB_HOST', 'localhost')
-DB_USER = os.environ.get('DB_USER', 'shadi_user')
-DB_PASS = os.environ.get('DB_PASS', 'password')
+DB_HOST = os.environ.get('DB_HOST', '148.72.120.181')
+DB_USER = os.environ.get('DB_USER', 'user_shadi_matrimony')
+DB_PASS = os.environ.get('DB_PASS', 'Bhavishya@123')
 DB_NAME = os.environ.get('DB_NAME', 'shadi_matrimony')
 
 def get_db_connection():
