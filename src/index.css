@@ -771,29 +771,59 @@ input,select,textarea,button { font-family: var(--font-body); }
 /* ── Map pin hover preview card ── */
 .leaflet-tooltip.profile-hover-tooltip {
   padding: 0;
-  border: 1.5px solid #D4AF37;
+  border: 2px solid #7A0026;
   border-radius: 14px;
-  overflow: hidden;
+  overflow: visible;          /* allow arrow to show outside border-radius clip */
   background: #ffffff;
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.48), 0 4px 12px rgba(122, 0, 38, 0.25);
   white-space: normal;
   pointer-events: none;
 }
 
+/* Arrow pointing down at the pin — Leaflet injects ::before for "top" direction */
 .leaflet-tooltip.profile-hover-tooltip::before {
-  border-top-color: #D4AF37;
+  /* Reset Leaflet default */
+  border: none;
+  width: 0;
+  height: 0;
+  margin: 0;
+  /* Custom larger arrow */
+  border-left: 10px solid transparent;
+  border-right: 10px solid transparent;
+  border-top: 12px solid #7A0026;
+  bottom: -12px;
+  left: 50%;
+  transform: translateX(-50%);
+  position: absolute;
+  content: '';
+}
+
+/* White inner arrow to create outlined/two-tone arrow effect */
+.leaflet-tooltip.profile-hover-tooltip::after {
+  content: '';
+  position: absolute;
+  width: 0;
+  height: 0;
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-top: 10px solid #ffffff;
+  bottom: -10px;
+  left: 50%;
+  transform: translateX(-50%);
 }
 
 .leaflet-tooltip.profile-hover-tooltip .leaflet-tooltip-content {
   margin: 0;
+  border-radius: 14px;
+  overflow: hidden;
 }
 
 /* ── Premium sidebar ── */
-.sidebar-scroll { scrollbar-width: thin; scrollbar-color: rgba(212, 175, 55, 0.45) transparent; }
-.sidebar-scroll::-webkit-scrollbar { width: 8px; }
-.sidebar-scroll::-webkit-scrollbar-track { background: transparent; }
-.sidebar-scroll::-webkit-scrollbar-thumb { background: rgba(212, 175, 55, 0.35); border-radius: 8px; }
-.sidebar-scroll::-webkit-scrollbar-thumb:hover { background: rgba(212, 175, 55, 0.6); }
+.sidebar-scroll { scrollbar-width: thin; scrollbar-color: #D4AF37 #F0E8DA; }
+.sidebar-scroll::-webkit-scrollbar { width: 6px; }
+.sidebar-scroll::-webkit-scrollbar-track { background: #F0E8DA; border-radius: 8px; }
+.sidebar-scroll::-webkit-scrollbar-thumb { background: #D4AF37; border-radius: 8px; }
+.sidebar-scroll::-webkit-scrollbar-thumb:hover { background: #B8972A; }
 
 .match-card {
   position: relative;
@@ -824,16 +854,34 @@ input,select,textarea,button { font-family: var(--font-body); }
   width: 58px;
   height: 58px;
   border-radius: 50%;
-  padding: 3px;
+  padding: 0;          /* no gap — photo fills the whole circle */
   display: grid;
   place-items: center;
+  /* white fill so nothing bleeds behind the photo */
+  background: #FFFFFF;
+}
+/* Score ring rendered as an outline pseudo-element ON TOP of the photo */
+.match-ring::before {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  /* conic-gradient is set inline on the element via style prop;
+     this pseudo-element inherits by using a box-shadow ring instead */
+  pointer-events: none;
+  z-index: 1;
 }
 .match-ring__img {
   width: 100%;
   height: 100%;
   border-radius: 50%;
   object-fit: cover;
-  border: 2px solid #FFFFFF;
+  object-position: top center;  /* show face, not chest */
+  border: none;                 /* no inner white border — clean edge */
+  background: #F2EAE0;
+  display: block;
+  position: relative;
+  z-index: 0;
 }
 .match-ring__score {
   position: absolute;
@@ -919,3 +967,21 @@ input,select,textarea,button { font-family: var(--font-body); }
 .detail-hero__hint { opacity: 0; transition: opacity 0.2s ease; }
 .detail-hero:hover .detail-hero__hint,
 .detail-hero:focus-visible .detail-hero__hint { opacity: 1; }
+
+/* ── Active (currently-viewing) sidebar card ── */
+.match-card--active {
+  border-color: #7A0026 !important;
+  background: linear-gradient(150deg, #FFF0F3 0%, #FFF8F0 100%) !important;
+  box-shadow: 0 0 0 3px rgba(122, 0, 38, 0.14), 0 8px 20px rgba(122, 0, 38, 0.12) !important;
+}
+.match-card--active .match-ring__score {
+  background: #7A0026;
+  color: #FFF;
+}
+
+/* ── Previously-viewed sidebar card ── */
+.match-card--viewed {
+  border-color: #E4C97A !important;
+  background: linear-gradient(150deg, #FFFDF5 0%, #FFFBEE 100%) !important;
+  box-shadow: 0 0 0 2px rgba(212, 175, 55, 0.18) !important;
+}

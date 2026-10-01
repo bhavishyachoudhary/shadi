@@ -26,52 +26,98 @@ const hasCoordinates = value => value
   && Number.isFinite(Number(value.lat))
   && Number.isFinite(Number(value.lng));
 
-// ── Animated pulse ring for selected pin ──
-function buildPinIcon(color, border, emoji, isSelected, isOnline) {
-  const size = isSelected ? 60 : 48;
+// ── Photo pin: circular profile picture inside a pin shape ──
+function buildPinIcon(color, border, photoUrl, isSelected, isOnline, isViewed) {
+  const size = isSelected ? 62 : 50;
   const halfSize = size / 2;
-  const pulse = isSelected
-    ? '<circle cx="' + halfSize + '" cy="' + halfSize + '" r="' + (halfSize - 2) + '" fill="none" stroke="' + border + '" stroke-width="2" opacity="0.5"><animate attributeName="r" from="' + (halfSize - 2) + '" to="' + (halfSize + 10) + '" dur="1.4s" repeatCount="indefinite"/><animate attributeName="opacity" from="0.5" to="0" dur="1.4s" repeatCount="indefinite"/></circle>'
-    : '';
-  const emojiSize = isSelected ? 22 : 18;
-  const emojiY = isSelected ? 39 : 31;
   const pinR = halfSize - 5;
   const stemTop = halfSize + pinR + 1;
-  const stemBot = size + 12;
-  const dotCY = size + 16;
-  const svgH = size + 20;
+  const stemBot = size + 13;
+  const dotCY  = size + 17;
+  const svgH   = size + 21;
+
+  // Pulse ring for selected
+  const pulse = isSelected
+    ? `<circle cx="${halfSize}" cy="${halfSize}" r="${pinR + 3}" fill="none" stroke="${border}" stroke-width="2.5" opacity="0.55">
+        <animate attributeName="r" from="${pinR + 3}" to="${pinR + 14}" dur="1.4s" repeatCount="indefinite"/>
+        <animate attributeName="opacity" from="0.55" to="0" dur="1.4s" repeatCount="indefinite"/>
+       </circle>`
+    : '';
+
+  // Soft gold dashed ring for previously-viewed (non-selected) pins
+  const viewedRing = (!isSelected && isViewed)
+    ? `<circle cx="${halfSize}" cy="${halfSize}" r="${pinR + 6}" fill="none" stroke="#D4AF37" stroke-width="2" stroke-dasharray="4 3" opacity="0.85"/>`
+    : '';
+
+  // Clip the photo to the circle
+  const clipId = `clip-${isSelected ? 's' : 'n'}-${isOnline ? '1' : '0'}`;
+  const filterId = `sh-${isSelected ? 's' : 'n'}`;
 
   const svg = [
-    '<svg xmlns="http://www.w3.org/2000/svg" width="' + size + '" height="' + svgH + '" viewBox="0 0 ' + size + ' ' + svgH + '">',
-    '<defs><filter id="sh' + (isSelected ? 's' : 'n') + '" x="-30%" y="-20%" width="160%" height="160%">',
-    '<feDropShadow dx="0" dy="' + (isSelected ? '6' : '3') + '" stdDeviation="' + (isSelected ? '6' : '3') + '" flood-color="rgba(0,0,0,' + (isSelected ? '0.6' : '0.4') + ')"/>',
-    '</filter></defs>',
+    `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${size}" height="${svgH}" viewBox="0 0 ${size} ${svgH}">`,
+    '<defs>',
+    `  <filter id="${filterId}" x="-35%" y="-25%" width="170%" height="170%">`,
+    `    <feDropShadow dx="0" dy="${isSelected ? 6 : 3}" stdDeviation="${isSelected ? 7 : 4}" flood-color="rgba(0,0,0,${isSelected ? 0.65 : 0.45})"/>`,
+    '  </filter>',
+    // Clip exactly to the inner photo circle (same radius as the border stroke inner edge)
+    `  <clipPath id="${clipId}">`,
+    `    <circle cx="${halfSize}" cy="${halfSize}" r="${pinR - 1.5}"/>`,
+    '  </clipPath>',
+    '</defs>',
     pulse,
-    '<circle cx="' + halfSize + '" cy="' + halfSize + '" r="' + pinR + '" fill="' + color + '" stroke="' + border + '" stroke-width="' + (isSelected ? '4' : '3') + '" filter="url(#sh' + (isSelected ? 's' : 'n') + ')"/>',
-    isOnline ? '<circle cx="' + (size - 6) + '" cy="8" r="6" fill="#10B981" stroke="#fff" stroke-width="2"/>' : '',
-    '<text x="' + halfSize + '" y="' + emojiY + '" text-anchor="middle" font-size="' + emojiSize + '" font-family="system-ui">' + emoji + '</text>',
-    '<line x1="' + halfSize + '" y1="' + stemTop + '" x2="' + halfSize + '" y2="' + stemBot + '" stroke="' + border + '" stroke-width="' + (isSelected ? '4' : '3') + '" stroke-linecap="round"/>',
-    '<circle cx="' + halfSize + '" cy="' + dotCY + '" r="4" fill="' + border + '"/>',
+    viewedRing,
+    // pin body — drawn first as the border ring
+    `<circle cx="${halfSize}" cy="${halfSize}" r="${pinR}" fill="${color}" stroke="${border}" stroke-width="${isSelected ? 4 : 3}" filter="url(#${filterId})"/>`,
+    // photo fills the pin completely — clip keeps it inside the border
+    photoUrl
+      ? `<image href="${photoUrl}" x="0" y="0" width="${size}" height="${size}" clip-path="url(#${clipId})" preserveAspectRatio="xMidYMid slice"/>`
+      : `<text x="${halfSize}" y="${halfSize + 7}" text-anchor="middle" font-size="${isSelected ? 22 : 18}" font-family="system-ui">👤</text>`,
+    // online dot — top-right
+    isOnline ? `<circle cx="${size - 5}" cy="8" r="6" fill="#10B981" stroke="#fff" stroke-width="2"/>` : '',
+    // selected: add a subtle bright inner ring highlight instead of crown (keeps the face clean)
+    isSelected ? `<circle cx="${halfSize}" cy="${halfSize}" r="${pinR - 1.5}" fill="none" stroke="rgba(255,255,255,0.65)" stroke-width="2"/>` : '',
+    // stem
+    `<line x1="${halfSize}" y1="${stemTop}" x2="${halfSize}" y2="${stemBot}" stroke="${border}" stroke-width="${isSelected ? 4 : 3}" stroke-linecap="round"/>`,
+    `<circle cx="${halfSize}" cy="${dotCY}" r="4" fill="${border}"/>`,
     '</svg>'
-  ].join('');
+  ].join('\n');
 
   return L.divIcon({
     className: '',
     html: svg,
-    iconSize: [size, svgH],
-    iconAnchor: [halfSize, svgH],
-    popupAnchor: [0, -(svgH)],
+    iconSize:    [size, svgH],
+    iconAnchor:  [halfSize, svgH],
+    popupAnchor: [0, -svgH],
   });
 }
 
-// Helper: FlyTo on city/profile change
-function MapController({ flyTarget }) {
+// Notify Leaflet when the container resizes so tiles repaint correctly
+function MapResizer({ trigger }) {
+  const map = useMap();
+  useEffect(() => {
+    // Wait for the CSS transition to finish (250 ms) before invalidating
+    const id = setTimeout(() => map.invalidateSize({ animate: false }), 280);
+    return () => clearTimeout(id);
+  }, [trigger, map]);
+  return null;
+}
+
+// Helper: FlyTo or soft pan
+function MapController({ flyTarget, hoverTarget }) {
   const map = useMap();
   useEffect(() => {
     if (hasCoordinates(flyTarget)) {
       map.flyTo([flyTarget.lat, flyTarget.lng], flyTarget.zoom || 8, { duration: 1.2, easeLinearity: 0.35 });
     }
   }, [flyTarget, map]);
+
+  // Soft pan to hovered sidebar card — no zoom change, just re-center smoothly
+  useEffect(() => {
+    if (hasCoordinates(hoverTarget)) {
+      map.panTo([hoverTarget.lat, hoverTarget.lng], { animate: true, duration: 0.5 });
+    }
+  }, [hoverTarget, map]);
+
   return null;
 }
 
@@ -90,18 +136,28 @@ const RADIUS_PRESETS = [
   { label: '🌍 All',   val: 5000 },
 ];
 
-function pinStyle(profile, interestMap, selectedId) {
-  const status = interestMap[profile.id];
-  const isOnline = Boolean(profile.activeStatus?.includes('Online') || profile.isOnline);
-  const isBride  = profile.gender === 'Bride';
-  const isSelected = selectedId === profile.id;
-  let color = '#FFFFFF', border = '#7A0026';
-  let emoji = isBride ? '👰' : '🤵';
-  if (!profile.isInRadius) { color = '#FEF3C7'; border = '#D97706'; }
-  if (status === 'accepted') { color = '#D1FAE5'; border = '#10B981'; emoji = '💚'; }
-  else if (status === 'declined') { color = '#FEE2E2'; border = '#EF4444'; emoji = '❌'; }
-  else if (status === 'sent')     { color = '#CCFBF1'; border = '#14B8A6'; emoji = '💌'; }
-  return { color, border, emoji, isSelected, isOnline };
+function pinStyle(profile, interestMap, selectedId, hoveredId) {
+  const status    = interestMap[profile.id];
+  const isOnline  = Boolean(profile.activeStatus?.includes('Online') || profile.isOnline);
+  const isSelected = String(selectedId) === String(profile.id);
+  const isHovered  = !isSelected && hoveredId && String(hoveredId) === String(profile.id);
+  const photoUrl   = (profile.photoPrivacy === 'Public' || status === 'accepted')
+    ? (profile.photo || null)
+    : null;
+
+  let color  = '#FFFFFF';
+  let border = '#7A0026';
+
+  if (!profile.isInRadius)        { color = '#FEF3C7'; border = '#D97706'; }
+  if (status === 'accepted')      { color = '#D1FAE5'; border = '#10B981'; }
+  else if (status === 'declined') { color = '#FEE2E2'; border = '#EF4444'; }
+  else if (status === 'sent')     { color = '#CCFBF1'; border = '#14B8A6'; }
+
+  if (isSelected) { border = '#7A0026'; color = '#FFF0F3'; }
+  // Hover: vivid gold glow, keeps photo but swaps ring to deep gold
+  if (isHovered)  { border = '#C79A2E'; color = '#FFFAE8'; }
+
+  return { color, border, photoUrl, isSelected, isHovered, isOnline };
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -129,13 +185,33 @@ export default function MapView({
   const [radiusKm,       setRadiusKm]       = useState(250);
   const [showOuter,      setShowOuter]      = useState(true);
   const [selectedProfile,setSelectedProfile] = useState(null);
+  // Keep a Set of every profile id that has been opened — persists while the map is mounted
+  const [viewedIds, setViewedIds] = useState(() => new Set());
   const [showFilters,    setShowFilters]    = useState(true);
   const [flyTarget,      setFlyTarget]      = useState(null);
+  const [hoverTarget,    setHoverTarget]    = useState(null); // sidebar card hover → map pan + tooltip
+  const [hoverPinId,     setHoverPinId]     = useState(null); // direct map pin mouseover
+  const markerRefs = React.useRef({});  // profileId → Leaflet Marker instance
   const [mapType,        setMapType]        = useState('satellite');
 
   // Search input state for city search
   const [citySearch,     setCitySearch]     = useState('');
   const [isSearchOpen,   setIsSearchOpen]   = useState(false);
+
+  // When a sidebar card is hovered, open that marker's tooltip on the map
+  React.useEffect(() => {
+    if (!hoverTarget) {
+      // close any open tooltip driven by hover
+      Object.values(markerRefs.current).forEach(marker => {
+        try { marker.closeTooltip(); } catch { /* marker may not be mounted */ }
+      });
+      return;
+    }
+    const marker = markerRefs.current[String(hoverTarget.id)];
+    if (marker) {
+      try { marker.openTooltip(); } catch { /* marker may not be mounted */ }
+    }
+  }, [hoverTarget]);
 
   // Sidebar layout: 'collapsed' | 'normal' | 'expanded'
   const [sidebarState,   setSidebarState]   = useState('normal');
@@ -145,7 +221,20 @@ export default function MapView({
       ? 'min(640px, 48vw)'
       : '365px';
 
-  /* ── Gender: Automatically show OPPOSITE of current user (Groom -> Bride, Bride -> Groom) ── */
+  // Open a profile in the sidebar and record it as viewed
+  const openProfile = (p) => {
+    if (!p) return;
+    setSelectedProfile(p);
+    setViewedIds(prev => {
+      if (prev.has(String(p.id))) return prev;
+      const next = new Set(prev);
+      next.add(String(p.id));
+      return next;
+    });
+    if (hasCoordinates(p)) setFlyTarget({ lat: p.lat, lng: p.lng, zoom: 11 });
+  };
+
+
   const genderTab = useMemo(() => {
     if (showAllProfiles) return 'All';
     const g = currentUser?.gender || 'Groom';
@@ -529,7 +618,8 @@ export default function MapView({
             attributionControl={true}
           >
             <ZoomControl position="bottomright"/>
-            <MapController flyTarget={flyTarget} mapType={mapType}/>
+            <MapController flyTarget={flyTarget} hoverTarget={hoverTarget} mapType={mapType}/>
+            <MapResizer trigger={sidebarState} />
 
             {/* Tile Layers */}
             {mapType==='satellite' ? (
@@ -589,29 +679,40 @@ export default function MapView({
             {/* Profile Pins */}
             {displayed.map(p => {
               if (!hasCoordinates(p)) return null;
-              const { color, border, emoji, isSelected, isOnline } = pinStyle(p, interestMap, selectedProfile?.id);
+              const { color, border, photoUrl, isSelected, isHovered: isPinHovered, isOnline } = pinStyle(p, interestMap, selectedProfile?.id, hoverPinId);
+              const isViewed = viewedIds.has(String(p.id)) && !isSelected;
               const mc = p.preferencesMatch ? p.preferencesMatch.filter(m=>m.isMatched).length : '-';
               const tc = p.preferencesMatch ? p.preferencesMatch.length : '-';
+              // Hovered from sidebar card OR from direct map pin mouseover
+              const isSidebarHovered = hoverTarget && String(hoverTarget.id) === String(p.id);
+              const isAnyHover = isPinHovered || Boolean(isSidebarHovered);
               return (
                 <Marker
                   key={'pin-' + p.id}
                   position={[p.lat, p.lng]}
-                  icon={buildPinIcon(color, border, emoji, isSelected, isOnline)}
+                  icon={buildPinIcon(color, border, photoUrl, isSelected || isAnyHover, isOnline, isViewed)}
                   keyboard={true}
+                  ref={el => { if (el) markerRefs.current[String(p.id)] = el; }}
                   eventHandlers={{
                     click: () => {
-                      setSelectedProfile(p);
-                      setFlyTarget({ lat: p.lat, lng: p.lng, zoom: 11 });
+                      openProfile(p);
                     },
-                    mouseover: (event) => event.target.openTooltip(),
-                    mouseout: (event) => event.target.closeTooltip(),
+                    mouseover: (event) => {
+                      setHoverPinId(String(p.id));
+                      event.target.openTooltip();
+                      if (isViewed) openProfile(p);
+                    },
+                    mouseout: (event) => {
+                      setHoverPinId(null);
+                      if (!isSidebarHovered) event.target.closeTooltip();
+                    },
                     focus: (event) => event.target.openTooltip(),
                     blur: (event) => event.target.closeTooltip(),
                   }}
                 >
                   <Tooltip
                     direction="top"
-                    offset={[0, isSelected ? -64 : -52]}
+                    offset={[0, isSelected || isAnyHover ? -68 : -56]}
                     opacity={1}
                     className="profile-hover-tooltip"
                   >
@@ -623,7 +724,7 @@ export default function MapView({
                             <img
                               src={p.photo}
                               alt=""
-                              style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', filter: photoAllowed ? 'none' : 'blur(9px)', transform: photoAllowed ? 'none' : 'scale(1.08)' }}
+                              style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', background: '#F2EAE0', filter: photoAllowed ? 'none' : 'blur(9px)', transform: photoAllowed ? 'none' : 'scale(1.08)' }}
                             />
                             <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(9,14,26,0.92) 0%, rgba(9,14,26,0.15) 60%, transparent 100%)' }} />
                             <div style={{ position: 'absolute', top: 8, left: 8, display: 'flex', gap: 6, alignItems: 'center' }}>
@@ -660,7 +761,7 @@ export default function MapView({
                   <Popup maxWidth={265} closeButton={true}>
                     <div style={{ fontFamily:'system-ui', padding:2, minWidth:230 }}>
                       <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:8 }}>
-                        <img src={p.photo} alt={p.name} style={{ width:52, height:52, borderRadius:'50%', objectFit:'cover', border:'2.5px solid '+border, flexShrink:0 }}/>
+                        <img src={p.photo} alt={p.name} style={{ width:52, height:52, borderRadius:'50%', objectFit:'cover', border:'2.5px solid '+border, background:'#F2EAE0', flexShrink:0 }}/>
                         <div>
                           <div style={{ fontSize:14, fontWeight:800, color:'#1F191D', marginBottom:2 }}>{p.name}</div>
                           <div style={{ fontSize:11, color:'#665D65', fontWeight:600 }}>{p.age}y • {p.city}, {p.state}</div>
@@ -766,10 +867,12 @@ export default function MapView({
                   <ProfileListPanel
                     profiles={displayed}
                     interestMap={interestMap}
+                    selectedId={selectedProfile?.id}
+                    viewedIds={viewedIds}
                     onExpressInterest={onExpressInterest}
-                    onSelect={p=>{
-                      setSelectedProfile(p);
-                      if (hasCoordinates(p)) setFlyTarget({ lat:p.lat, lng:p.lng, zoom:11 });
+                    onSelect={openProfile}
+                    onHoverProfile={p => {
+                      setHoverTarget(p || null);
                     }}
                   />
                 )}
@@ -783,7 +886,7 @@ export default function MapView({
 }
 
 /* ── Profile List (no pin selected) ── */
-function ProfileListPanel({ profiles, interestMap, onExpressInterest, onSelect }) {
+function ProfileListPanel({ profiles, interestMap, selectedId, viewedIds = new Set(), onExpressInterest, onSelect, onHoverProfile }) {
   const sorted = [...profiles].sort((a,b)=>{
     if (a.isInRadius!==b.isInRadius) return a.isInRadius?-1:1;
     return a.minDistance-b.minDistance;
@@ -833,18 +936,35 @@ function ProfileListPanel({ profiles, interestMap, onExpressInterest, onSelect }
         const heart = heartConfig(s);
         const pct = Math.max(0, Math.min(100, p.matchScore || 0));
         const ringColor = pct >= 85 ? '#10B981' : pct >= 70 ? '#D4AF37' : '#F59E0B';
+        const isActive  = String(selectedId) === String(p.id);
+        const wasViewed = !isActive && viewedIds.has(String(p.id));
         return (
           <div
             key={p.id}
-            className={'match-card' + (p.isInRadius ? '' : ' match-card--out')}
+            className={[
+              'match-card',
+              p.isInRadius ? '' : 'match-card--out',
+              isActive  ? 'match-card--active'  : '',
+              wasViewed ? 'match-card--viewed'  : '',
+            ].filter(Boolean).join(' ')}
             onClick={()=>onSelect(p)}
             role="button"
             tabIndex={0}
             onKeyDown={e=>{ if (e.key==='Enter' || e.key===' ') { e.preventDefault(); onSelect(p); } }}
+            onMouseEnter={()=>onHoverProfile?.(p)}
+            onMouseLeave={()=>onHoverProfile?.(null)}
             title="Open full profile"
           >
-            <div className="match-ring" style={{ background:`conic-gradient(${ringColor} ${pct * 3.6}deg, #E7DDCB 0deg)` }}>
-              <img className="match-ring__img" src={p.photo} alt={p.name}/>
+            <div className="match-ring">
+              <img
+                className="match-ring__img"
+                src={p.photo}
+                alt={p.name}
+                style={{
+                  outline: `3px solid ${ringColor}`,
+                  outlineOffset: '2px',
+                }}
+              />
               <span className="match-ring__gender">{p.gender==='Bride'?'👰':'🤵'}</span>
               <span className="match-ring__score">{pct}%</span>
             </div>
@@ -854,6 +974,11 @@ function ProfileListPanel({ profiles, interestMap, onExpressInterest, onSelect }
                 <span style={{ fontSize:13, fontWeight:800, color:'#1F191D', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{p.name}</span>
                 {p.isVerified && <ShieldCheck size={13} style={{ color:'#2563EB', flexShrink:0 }}/>}
               </div>
+              {wasViewed && (
+                <span style={{ display:'inline-flex', alignItems:'center', gap:3, fontSize:9, fontWeight:800, color:'#C79A2E', background:'#FBF3DF', border:'1px solid #E4C97A', padding:'1px 7px', borderRadius:50, marginTop:2 }}>
+                  👁 Viewed
+                </span>
+              )}
               <div style={{ fontSize:10.5, color:'#6B7280', fontWeight:600, marginTop:2, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
                 {p.age} yrs • {p.city}{p.country && p.country !== 'India' ? `, ${p.country}` : ''}
               </div>
@@ -907,7 +1032,7 @@ function ProfileDetailPanel({
     ? { bg:'#DC2626', cl:'#FFF', bc:'#EF4444' }
     : status==='sent'
     ? { bg:'#0D9488', cl:'#FFF', bc:'#14B8A6' }
-    : { bg:'linear-gradient(135deg,#58001B,#7A0026)', cl:'#D4AF37', bc:'#D4AF37' };
+    : { bg:'linear-gradient(135deg,#7A0026,#C0185E)', cl:'#FFF', bc:'#7A0026' };
 
   return (
     <div style={{ display:'flex', flexDirection:'column' }}>
@@ -922,7 +1047,7 @@ function ProfileDetailPanel({
         onClick={()=>openGallery(profile)}
         onKeyDown={e=>{ if (e.key==='Enter' || e.key===' ') { e.preventDefault(); openGallery(profile); } }}
       >
-        <img src={profile.photo} alt={profile.name} style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }}/>
+        <img src={profile.photo} alt={profile.name} style={{ width:'100%', height:'100%', objectFit:'cover', display:'block', background:'#F2EAE0' }}/>
         <div style={{ position:'absolute', inset:0, background:'linear-gradient(to top,rgba(9,14,26,0.97) 0%,rgba(9,14,26,0.45) 42%,rgba(9,14,26,0.05) 100%)' }}/>
 
         {/* Top row */}
@@ -974,21 +1099,21 @@ function ProfileDetailPanel({
       <div style={{ padding:14, display:'flex', flexDirection:'column', gap:11 }}>
         {/* Quick trait chips */}
         <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
-          {profile.motherTongue && <span className="chip" style={{ color:'rgba(255,255,255,0.8)', background:'rgba(255,255,255,0.07)', fontSize:10, padding:'3px 10px' }}>🗣️ {profile.motherTongue}</span>}
-          {profile.diet && <span className="chip" style={{ color:'rgba(255,255,255,0.8)', background:'rgba(255,255,255,0.07)', fontSize:10, padding:'3px 10px' }}>🍽️ {profile.diet}</span>}
-          {profile.manglik && <span className="chip" style={{ color:'rgba(255,255,255,0.8)', background:'rgba(255,255,255,0.07)', fontSize:10, padding:'3px 10px' }}>✨ Manglik: {profile.manglik}</span>}
-          {profile.isNri && <span className="chip" style={{ color:'#93C5FD', background:'rgba(59,130,246,0.14)', fontSize:10, padding:'3px 10px' }}>✈️ NRI</span>}
+          {profile.motherTongue && <span className="chip" style={{ color:'#5B4D43', background:'#F2EDE4', fontSize:10, padding:'3px 10px' }}>🗣️ {profile.motherTongue}</span>}
+          {profile.diet && <span className="chip" style={{ color:'#5B4D43', background:'#F2EDE4', fontSize:10, padding:'3px 10px' }}>🍽️ {profile.diet}</span>}
+          {profile.manglik && <span className="chip" style={{ color:'#5B4D43', background:'#F2EDE4', fontSize:10, padding:'3px 10px' }}>✨ Manglik: {profile.manglik}</span>}
+          {profile.isNri && <span className="chip" style={{ color:'#1D4ED8', background:'#EFF6FF', fontSize:10, padding:'3px 10px' }}>✈️ NRI</span>}
         </div>
 
         {/* Radius badge */}
         {profile.isInRadius ? (
-          <div style={{ fontSize:11, fontWeight:800, color:'#10B981', background:'rgba(16,185,129,0.1)', padding:'8px 13px', borderRadius:12, border:'1px solid rgba(16,185,129,0.28)', display:'flex', alignItems:'center', gap:6 }}>
-            <MapPin size={12} style={{ color:'#10B981' }}/> {profile.minDistance} km from {profile.nearestCenterName}
+          <div style={{ fontSize:11, fontWeight:800, color:'#059669', background:'#E7F8F0', padding:'8px 13px', borderRadius:12, border:'1px solid #A7E8CE', display:'flex', alignItems:'center', gap:6 }}>
+            <MapPin size={12} style={{ color:'#059669' }}/> {profile.minDistance} km from {profile.nearestCenterName}
           </div>
         ) : (
-          <div style={{ background:'rgba(245,158,11,0.09)', border:'1px solid rgba(245,158,11,0.3)', padding:'9px 13px', borderRadius:12 }}>
-            <div style={{ fontSize:11, fontWeight:800, color:'#F59E0B', display:'flex', alignItems:'center', gap:5, marginBottom:2 }}><Crown size={12} style={{ color:'#F59E0B' }}/> {profile.minDistance} km away — out of range</div>
-            <div style={{ fontSize:10, color:'rgba(255,255,255,0.5)', fontWeight:600 }}>Outside your {radiusKm} km radius</div>
+          <div style={{ background:'#FFF8ED', border:'1px solid #F9D98A', padding:'9px 13px', borderRadius:12 }}>
+            <div style={{ fontSize:11, fontWeight:800, color:'#B45309', display:'flex', alignItems:'center', gap:5, marginBottom:2 }}><Crown size={12} style={{ color:'#B45309' }}/> {profile.minDistance} km away — out of range</div>
+            <div style={{ fontSize:10, color:'#92400E', fontWeight:600 }}>Outside your {radiusKm} km radius</div>
           </div>
         )}
 
@@ -1005,9 +1130,9 @@ function ProfileDetailPanel({
             {!status&&<><Heart size={15} fill="#D4AF37" stroke="none"/>Express Interest</>}
           </button>
           <div style={{ display:'grid', gridTemplateColumns: profile.lifestyleVideo ? '1fr 1fr' : '1fr', gap:7 }}>
-            <button onClick={()=>onOpenParivarMeet(profile)} style={{ padding:8, borderRadius:'50px', fontSize:11, fontWeight:800, background:'rgba(255,255,255,0.06)', color:'rgba(255,255,255,0.78)', border:'1px solid rgba(255,255,255,0.13)', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:4 }}><Calendar size={12}/>Parivar Meet</button>
+            <button onClick={()=>onOpenParivarMeet(profile)} style={{ padding:8, borderRadius:'50px', fontSize:11, fontWeight:800, background:'#FFFFFF', color:'#7A0026', border:'1px solid #EADFCB', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:4, boxShadow:'0 1px 4px rgba(0,0,0,0.06)' }}><Calendar size={12}/>Parivar Meet</button>
             {profile.lifestyleVideo && (
-              <button onClick={()=>onOpenLifestyleReels(profile)} style={{ padding:8, borderRadius:'50px', fontSize:11, fontWeight:800, background:'rgba(0,0,0,0.35)', color:'#D4AF37', border:'1.5px solid #D4AF37', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:5 }}>
+              <button onClick={()=>onOpenLifestyleReels(profile)} style={{ padding:8, borderRadius:'50px', fontSize:11, fontWeight:800, background:'#FFF0F3', color:'#7A0026', border:'1.5px solid #F9A8C0', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:5 }}>
                 <Video size={12} style={{ color:'#EF4444' }}/> Reel
               </button>
             )}
@@ -1019,7 +1144,7 @@ function ProfileDetailPanel({
         {/* About */}
         {profile.about && (
           <SidebarSection title="About">
-            <p style={{ fontSize:11, lineHeight:1.6, color:'rgba(255,255,255,0.72)', fontWeight:600, margin:0 }}>{profile.about}</p>
+            <p style={{ fontSize:11, lineHeight:1.7, color:'#4B5563', fontWeight:600, margin:0 }}>{profile.about}</p>
           </SidebarSection>
         )}
 
@@ -1058,8 +1183,8 @@ function ProfileDetailPanel({
           <SidebarSection title={`Preference Match (${mc}/${tc})`}>
             {profile.preferencesMatch.map((pref,i)=>(
               <div key={i} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8, fontSize:10, fontWeight:700, marginBottom:6 }}>
-                <span style={{ color:'rgba(255,255,255,0.6)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', flex:1 }}>{pref.criteria}</span>
-                <span style={{ color:pref.isMatched?'#10B981':'#EF4444', background:pref.isMatched?'rgba(16,185,129,0.13)':'rgba(239,68,68,0.13)', padding:'2px 8px', borderRadius:'50px', fontWeight:900, flexShrink:0 }}>
+                <span style={{ color:'#5B5049', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', flex:1 }}>{pref.criteria}</span>
+                <span style={{ color:pref.isMatched?'#059669':'#DC2626', background:pref.isMatched?'#E7F8F0':'#FEE2E2', padding:'2px 8px', borderRadius:'50px', fontWeight:900, flexShrink:0 }}>
                   {pref.isMatched?'✓ Match':'✗ Miss'}
                 </span>
               </div>
@@ -1084,9 +1209,9 @@ function SidebarSection({ title, children }) {
 
 function SidebarRow({ label, value }) {
   return (
-    <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:10, padding:'5px 0', borderBottom:'1px solid rgba(255,255,255,0.05)' }}>
-      <span style={{ fontSize:10, fontWeight:700, color:'rgba(255,255,255,0.5)', flexShrink:0, textTransform:'uppercase', letterSpacing:'0.3px' }}>{label}</span>
-      <span style={{ fontSize:11.5, fontWeight:700, color:'rgba(255,255,255,0.9)', textAlign:'right' }}>{value}</span>
+    <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:10, padding:'5px 0', borderBottom:'1px solid #EEE4D5' }}>
+      <span style={{ fontSize:10, fontWeight:700, color:'#8A7F73', flexShrink:0, textTransform:'uppercase', letterSpacing:'0.3px' }}>{label}</span>
+      <span style={{ fontSize:11.5, fontWeight:700, color:'#2D2018', textAlign:'right' }}>{value}</span>
     </div>
   );
 }
