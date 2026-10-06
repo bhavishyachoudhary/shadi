@@ -2,7 +2,7 @@
 
 > **Stack:** React + Vite (Frontend) · Node.js + Express (Backend API) · React-Leaflet (Map) · Vanilla CSS  
 > **Repo:** https://github.com/bhavishyachoudhary/shadi  
-> **Status:** Active Development — MVP Live  
+> **Status:** Active Development — Sprint 1 Complete  
 
 ---
 
@@ -36,26 +36,46 @@
 
 ---
 
-## 🔧 PHASE 2 — Refinements (IN PROGRESS)
+## ✅ PHASE 2 — 11-Point Feature Sprint (Sprint 1 Complete — Oct 2026)
 
-### Active Tasks
-- [ ] **Sidebar left-panel UI polish** — make city search more prominent & attractive
-- [ ] **"No profiles on page" empty state** — show when filters return zero results
-- [ ] **Toast system upgrade** — replace fixed toast with animated slide-in/out
-- [ ] **Shared photo sync** — ensure profile photo changes reflect instantly across modals
-- [ ] **Map View sidebar scrollbar** — style custom scrollbar for dark glass panel
+### From User Requirements (Oct 7, 2026 — 11 Features)
 
-### Known Issues to Fix
-| Issue | Severity | Fix Plan |
-|---|---|---|
-| Page blank on refresh with filter edge-case | Medium | Validate filter default state on mount |
-| Map tile flicker on city switch | Low | Add loading skeleton over map |
-| Sidebar `maxHeight: 820` hardcoded | Low | Replace with `calc(100vh - 70px)` |
-| Floating chat z-index conflict on mobile | Low | Audit all z-index layers |
+| # | Feature | Status | Notes |
+|---|---|---|---|
+| 1 | Interest persistence + Subscription tokens | ⏳ Sprint 2 | Planned |
+| 2 | Fix map filters | ✅ Done | Parent location mode added |
+| 3 | Notifications with profile photo + name + link | ✅ Done | Photos, match %, "View Profile →" |
+| 4 | Rich listing: degree, designation, package, caste, gotra, location | ✅ Done | ProfileCard rebuilt |
+| 5 | Parent location search (parent in Hisar, user works in Gurugram) | ✅ Done | Work vs Home toggle in MapView |
+| 6 | Family account access + permissions | ⏳ Sprint 2 | Planned |
+| 7 | Attractive user profile + personal feed | ⏳ Sprint 2 | Planned |
+| 8 | Public feed based on map selection | ⏳ Sprint 2 | Planned |
+| 9 | Multiple images (profile + cover picture) | ✅ Done | coverPhoto, galleryPhotos added to all profiles |
+| 10 | Follow friends/users (optional social) | ⏳ Sprint 3 | Optional |
+| 11 | Past achievements + present targets + future vision | ✅ Done | Life Story section in all profiles |
+
+### Sprint 1 Changes Made (Oct 7, 2026)
+- **NotificationsModal.jsx** — Rebuilt to show profile photos, names, match%, occupation, city, "View Profile →" link
+- **mockProfiles.js** — Added: `parentLocation`, `coverPhoto`, `galleryPhotos`, `designation`, `degree`, `achievements[]`, `presentTargets[]`, `futureVision`
+- **ProfileCard.jsx** — Now shows: designation (bold), degree, caste+community, gotra, parent location, income pill
+- **MapView.jsx** — Added `searchMode` state: **Work City** vs **Parent Home** toggle that changes distance computation
+- **App.jsx** — Notifications enriched with `match` type + `profiles` passed to NotificationsModal
+- **IMPLEMENTATION_PLAN.md** — Created with full 11-feature spec
 
 ---
 
-## 🚀 PHASE 3 — Backend Integration (NEXT 2–4 WEEKS)
+## 🔧 PHASE 2 — Sprint 2 (Upcoming — Oct 8–10)
+
+### Planned
+- [ ] **Interest persistence** — Save to `localStorage`, reload on refresh
+- [ ] **Subscription access tokens** — Free/Silver/Gold/Diamond gating with locked overlays
+- [ ] **Family access modal** — Add family member, set permissions (view/respond/full)
+- [ ] **User profile page** — Cover photo + circular avatar + tabs (About/Feed/Achievements/Matches)
+- [ ] **Public map feed** — Slide-in profile feed panel when region is selected on map
+
+---
+
+## 🚀 PHASE 3 — Backend Integration (Upcoming)
 
 ### Real Database & Auth
 - [ ] **MongoDB Atlas** — Profiles, Users, Interests, Messages collections
@@ -75,13 +95,12 @@
 
 ### Real-Time Features (Socket.io)
 - [ ] **Live chat** — Socket.io rooms per matched pair
-- [ ] **Typing indicators** — Real-time typing dots in chat
 - [ ] **Online/Away status** — Heartbeat-based presence
 - [ ] **Push notifications** — New interest, visitor alerts
 
 ---
 
-## 💡 PHASE 4 — Premium Features (4–8 WEEKS)
+## 💡 PHASE 4 — Premium Features
 
 ### Advanced Search & Matching
 - [ ] **AI Match Score** — Weighted compatibility engine (religion, gotra, city, education, income)
@@ -93,20 +112,13 @@
 ### Map Enhancements
 - [ ] **Cluster Markers** — Group nearby pins at low zoom levels
 - [ ] **Heatmap Layer** — Density heatmap of profiles by region
-- [ ] **Route to Profile** — "How far is this city from me?" distance card
 - [ ] **State-level filter** — Filter by state (Haryana, Punjab, Rajasthan, etc.)
-
-### Communication
-- [ ] **Parivar Meet Video** — Embed Jitsi/Daily.co video call in modal
-- [ ] **Read Receipts** — Double-tick in chat messages
-- [ ] **Message Templates** — Pre-written icebreaker messages
-- [ ] **Voice Note** — Short 30s voice message in chat
 
 ---
 
-## 💰 PHASE 5 — Monetization (6–10 WEEKS)
+## 💰 PHASE 5 — Monetization
 
-### Membership Tiers (Implement Backend)
+### Membership Tiers
 | Plan | Price | Features |
 |---|---|---|
 | Free | ₹0 | 5 profile views/day, no chat |
@@ -114,59 +126,18 @@
 | Gold | ₹2499/mo | Unlimited, chat, Parivar Meet |
 | Diamond | ₹4999/mo | All + AI boost + NRI access |
 
-### Payment Gateway
-- [ ] **Razorpay integration** — Indian payment gateway (UPI, cards, netbanking)
+- [ ] **Razorpay integration** — Indian payment gateway
 - [ ] **Subscription management** — Auto-renewal, cancel anytime
 - [ ] **GST invoice generation** — PDF invoice on payment
-- [ ] **Referral rewards** — ₹500 off for referring a new member
 
 ---
 
-## 📱 PHASE 6 — Mobile App (8–12 WEEKS)
+## 📱 PHASE 6 — Mobile App
 
-### React Native / Expo
-- [ ] **Expo setup** — Same codebase, cross-platform
-- [ ] **Push notifications** — Firebase FCM for mobile alerts
-- [ ] **Biometric login** — Face ID / Fingerprint login
-- [ ] **Camera integration** — Take/crop profile photo in-app
-- [ ] **GPS-based proximity** — "Profiles near you right now" live map
-- [ ] **App Store + Play Store listing** — Production submission
-
----
-
-## 🧹 PHASE 7 — Tech Debt & Performance
-
-### Code Quality
-- [ ] Split `MapView.jsx` (850 lines) → `MapContainer.jsx` + `ProfileSidebar.jsx` + `FilterPanel.jsx`
-- [ ] Move all inline styles → CSS modules or `index.css` utility classes
-- [ ] Add `PropTypes` or migrate to **TypeScript**
-- [ ] Add unit tests (Vitest + React Testing Library) for core handlers
-- [ ] Add E2E tests (Playwright) for auth and profile flow
-
-### Performance
-- [ ] **Lazy-load modals** — `React.lazy()` for ProfileDetailModal, GunaMilan, etc.
-- [ ] **Image CDN** — Serve all photos via Cloudinary with `?w=400&q=80`
-- [ ] **Virtualized profile list** — `react-window` for 1000+ profiles
-- [ ] **Service Worker** — Cache map tiles for offline use
-
-### SEO & PWA
-- [ ] **React Helmet** — Dynamic `<title>` and `<meta>` per page
-- [ ] **sitemap.xml + robots.txt** — Crawlable public profile pages
-- [ ] **PWA manifest** — Installable on Android/iOS home screen
-- [ ] **Lighthouse score ≥ 90** — Performance, Accessibility, SEO
-
----
-
-## 📊 Metrics to Track (Post-Launch)
-
-| Metric | Target |
-|---|---|
-| Profile registrations | 500 in Month 1 |
-| Daily Active Users | 100 DAU by Month 2 |
-| Express Interests sent/day | 200+ |
-| Chat messages/day | 500+ |
-| Premium conversions | 5% of registered users |
-| Map sessions/day | 50+ |
+- [ ] **Expo setup** — Cross-platform React Native
+- [ ] **Push notifications** — Firebase FCM
+- [ ] **GPS-based proximity** — "Profiles near you right now"
+- [ ] **App Store + Play Store listing**
 
 ---
 
@@ -174,13 +145,12 @@
 
 ```
 Sep 2026  → Phase 1 DONE (MVP Live)
-Oct 2026  → Phase 2 Refinements + Phase 3 Backend Start
+Oct 2026  → Phase 2 Sprint 1 DONE (Features 3,4,5,9,11) + Sprint 2 In Progress
 Nov 2026  → Phase 3 Complete (Real DB + Auth + Socket.io)
 Dec 2026  → Phase 4 Premium Features + AI Match Score
 Jan 2027  → Phase 5 Monetization (Razorpay)
 Feb 2027  → Phase 6 Mobile App (React Native)
-Mar 2027  → Phase 7 Tech Debt + Performance
-Apr 2027  → Public Launch
+Apr 2027  → Public Launch 🚀
 ```
 
 ---
@@ -193,4 +163,4 @@ Project: [github.com/bhavishyachoudhary/shadi](https://github.com/bhavishyachoud
 
 ---
 
-*Last updated: September 2026*
+*Last updated: October 7, 2026 — Sprint 1 Complete*
