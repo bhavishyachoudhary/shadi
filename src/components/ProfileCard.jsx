@@ -159,8 +159,12 @@ export default function ProfileCard({
               <h3 onClick={() => onSelectProfile(profile)} className="profile-name">
                 {profile.name}
               </h3>
+              {/* Designation + Age row */}
+              <p style={{ fontSize: '12px', fontWeight: 800, color: '#7A0026', margin: '1px 0 3px' }}>
+                {profile.designation || profile.occupation}
+              </p>
               <p className="profile-meta-text">
-                {profile.age} Yrs • {profile.height} • {profile.religion} ({profile.caste})
+                {profile.age} Yrs • {profile.height} • {profile.religion}
               </p>
 
               {/* Distance Proximity & Radius Plan Badge */}
@@ -252,15 +256,19 @@ export default function ProfileCard({
             </div>
           </div>
 
-          {/* Clean Particulars Grid */}
+          {/* Clean Particulars Grid — Feature 4: degree, designation, package, caste, gotra, location */}
           <div className="specs-grid-box">
             <div className="spec-item">
               <GraduationCap size={14} style={{ color: '#7A0026', flexShrink: 0 }} />
-              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{profile.education}</span>
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {profile.degree || profile.education}
+              </span>
             </div>
             <div className="spec-item">
               <Briefcase size={14} style={{ color: '#7A0026', flexShrink: 0 }} />
-              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{profile.occupation}</span>
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {profile.designation || profile.occupation}
+              </span>
             </div>
             <div className="spec-item">
               <MapPin size={14} style={{ color: '#7A0026', flexShrink: 0 }} />
@@ -268,8 +276,22 @@ export default function ProfileCard({
             </div>
             <div className="spec-item">
               <Sparkles size={14} style={{ color: '#D4AF37', flexShrink: 0 }} />
-              <span>Rashi: {profile.rashi} • {profile.manglik === 'No' ? 'Non-Manglik' : 'Manglik'}</span>
+              <span>
+                {profile.caste} • {profile.motherTongue}
+              </span>
             </div>
+            {profile.gotra && profile.gotra !== 'N/A' && (
+              <div className="spec-item">
+                <Star size={14} style={{ color: '#D4AF37', flexShrink: 0 }} />
+                <span>Gotra: {profile.gotra}</span>
+              </div>
+            )}
+            {profile.parentLocation && (
+              <div className="spec-item">
+                <Globe size={14} style={{ color: '#7A0026', flexShrink: 0 }} />
+                <span>🏠 Parents: {profile.parentLocation.city}, {profile.parentLocation.state}</span>
+              </div>
+            )}
           </div>
 
           {/* Income Pills */}

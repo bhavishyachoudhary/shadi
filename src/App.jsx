@@ -187,12 +187,13 @@ export default function App() {
     }
   };
 
-  // Notifications State
+  // Notifications State (enriched with profileId so modal can show photo+link)
   const [notifications, setNotifications] = useState([
-    { id: 1, type: 'accept', title: 'Interest Accepted!', subtitle: 'Ananya Sharma accepted your express interest request.', time: '10m ago', read: false, profileId: 101 },
-    { id: 2, type: 'visitor', title: 'New Profile Visitor', subtitle: 'Dr. Priya Kapoor (Pediatric Specialist) viewed your profile.', time: '25m ago', read: false, profileId: 103 },
-    { id: 3, type: 'interest', title: 'Express Interest Received', subtitle: 'Rohan Verma (VP HDFC Bank) sent you an express interest.', time: '1h ago', read: false, profileId: 102 },
-    { id: 4, type: 'parivar', title: 'Parivar Meet Scheduled', subtitle: 'Parivar Meet video call confirmed for Sunday at 5:00 PM.', time: '3h ago', read: true, profileId: 101 }
+    { id: 1, type: 'match',   title: 'New Top Match!',           subtitle: '🎯 94% compatibility — Ananya Sharma matches your preferences perfectly.',  time: '5m ago',  read: false, profileId: 101 },
+    { id: 2, type: 'accept',  title: 'Interest Accepted!',       subtitle: 'Ananya Sharma accepted your express interest request.',                       time: '10m ago', read: false, profileId: 101 },
+    { id: 3, type: 'visitor', title: 'New Profile Visitor',      subtitle: 'Dr. Priya Kapoor viewed your profile today.',                                  time: '25m ago', read: false, profileId: 103 },
+    { id: 4, type: 'interest','title': 'Interest Received',      subtitle: 'Rohan Verma sent you an express interest request.',                            time: '1h ago',  read: false, profileId: 102 },
+    { id: 5, type: 'parivar', title: 'Parivar Meet Scheduled',   subtitle: 'Parivar Meet video call confirmed for Sunday at 5:00 PM.',                     time: '3h ago',  read: true,  profileId: 101 },
   ]);
 
   // Modals State
@@ -450,6 +451,7 @@ export default function App() {
       {isNotificationsOpen && (
         <NotificationsModal
           notifications={notifications}
+          profiles={profiles}
           onClose={() => setIsNotificationsOpen(false)}
           onMarkAllRead={() => {
             setNotifications(prev => prev.map(n => ({ ...n, read: true })));

@@ -198,6 +198,9 @@ export default function MapView({
   const [citySearch,     setCitySearch]     = useState('');
   const [isSearchOpen,   setIsSearchOpen]   = useState(false);
 
+  // Feature 5: Parent location search mode ('work' | 'parent')
+  const [searchMode, setSearchMode] = useState('work');
+
   // When a sidebar card is hovered, open that marker's tooltip on the map
   React.useEffect(() => {
     if (!hoverTarget) {
@@ -242,12 +245,16 @@ export default function MapView({
   }, [currentUser, showAllProfiles]);
 
   /* ── Compute distance + radius for EACH profile ── */
+  /* Feature 5: when searchMode === 'parent', use parentLocation coords instead of work coords */
   const profilesWithDist = profiles.map(p => {
-    const { minDistance, nearestCenterName } = getMinDistanceToCenters(p.lat, p.lng, selectedCities);
+    const useLat = (searchMode === 'parent' && p.parentLocation?.lat) ? p.parentLocation.lat : p.lat;
+    const useLng = (searchMode === 'parent' && p.parentLocation?.lng) ? p.parentLocation.lng : p.lng;
+    const { minDistance, nearestCenterName } = getMinDistanceToCenters(useLat, useLng, selectedCities);
     const hasAll = selectedCities.some(c => (typeof c === 'object' ? c.id : c) === 'All');
     const isInRadius = hasAll || radiusKm >= 3000 || minDistance <= radiusKm;
-    return { ...p, minDistance, nearestCenterName, isInRadius };
+    return { ...p, minDistance, nearestCenterName, isInRadius, _searchLat: useLat, _searchLng: useLng };
   });
+
 
   /* Filter by gender tab AND showOuter */
   const displayed = profilesWithDist.filter(p => {
@@ -561,6 +568,39 @@ export default function MapView({
                   <span style={{ fontSize:10, fontWeight:700, color:'rgba(255,255,255,0.7)' }}>Show Out-of-Radius Profiles</span>
                   <button onClick={()=>setShowOuter(!showOuter)} style={{ background:showOuter?'#D4AF37':'rgba(255,255,255,0.1)', color:showOuter?'#090E1A':'#FFF', border:'none', borderRadius:50, padding:'4px 12px', fontSize:10, fontWeight:900, cursor:'pointer' }}>{showOuter?'👁️ ON':'🚫 OFF'}</button>
                 </div>
+
+                {/* Feature 5: PARENT LOCATION SEARCH TOGGLE */}
+                <div style={{ borderTop: '1px solid rgba(212,175,55,0.15)', paddingTop: 10 }}>
+                  <div style={{ ...LBL, marginBottom: 7, display:'flex', alignItems:'center', gap:4 }}>
+                    🏠 Search Mode — Work or Parent Home?
+                  </div>
+                  <div style={{ display:'flex', gap: 4, background:'rgba(255,255,255,0.05)', padding: 3, borderRadius: 50, border:'1px solid rgba(212,175,55,0.25)' }}>
+                    {[
+                      { id: 'work',   label: '💼 Work City' },
+                      { id: 'parent', label: '🏠 Parent Home' },
+                    ].map(mode => (
+                      <button
+                        key={mode.id}
+                        onClick={() => setSearchMode(mode.id)}
+                        style={{
+                          flex: 1, padding: '5px 0', borderRadius: 50, fontSize: 10, fontWeight: 800,
+                          border: 'none', cursor: 'pointer',
+                          background: searchMode === mode.id ? '#D4AF37' : 'transparent',
+                          color: searchMode === mode.id ? '#090E1A' : 'rgba(255,255,255,0.7)',
+                          transition: 'all 0.15s'
+                        }}
+                      >
+                        {mode.label}
+                      </button>
+                    ))}
+                  </div>
+                  {searchMode === 'parent' && (
+                    <div style={{ marginTop: 6, fontSize: 9, color: 'rgba(212,175,55,0.8)', fontWeight: 700, textAlign:'center' }}>
+                      Distances calculated from family hometown 🏡
+                    </div>
+                  )}
+                </div>
+
 
                 {/* 7. MY PROFILE LOCATION */}
                 <div style={{ borderTop:'1px solid rgba(212,175,55,0.18)', paddingTop:10 }}>
